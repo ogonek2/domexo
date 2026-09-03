@@ -8,7 +8,7 @@
                     <img src="{{ asset('storage/src/logo.svg') }}" alt="DOMEXO" class="h-10 w-10 brightness-0 invert">
                     <div>
                         <h3 class="font-heading text-xl font-bold">
-                            DOMI<span class="text-[#D4AF5A]">EXO</span>
+                            DOM<span class="text-[#D4AF5A]">EXO</span>
                         </h3>
                         <p class="text-[10px] tracking-brand-wide text-white/50 uppercase">Home &bull; Kitchen &bull; Bath</p>
                     </div>

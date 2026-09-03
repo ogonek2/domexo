@@ -191,12 +191,19 @@ class Product extends Model
         });
 
         static::saved(function ($product) {
-            ProductFeedService::generate();
+            self::regenerateFeed();
         });
 
         static::deleted(function ($product) {
-            ProductFeedService::generate();
+            self::regenerateFeed();
         });
+    }
+
+    protected static function regenerateFeed()
+    {
+        if (class_exists(ProductFeedService::class)) {
+            ProductFeedService::generate();
+        }
     }
 
     // Метод для генерации href

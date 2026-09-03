@@ -32,7 +32,7 @@
                      class="site-header__logo-img group-hover:opacity-90 transition-opacity">
                 <div class="site-header__logo-text">
                     <span class="site-header__logo-name">
-                        DOMI<span class="site-header__logo-accent">EXO</span>
+                        DOM<span class="site-header__logo-accent">EXO</span>
                     </span>
                     <span class="site-header__logo-tagline">Home &bull; Kitchen &bull; Bath</span>
                 </div>
@@ -102,7 +102,7 @@
         <a href="{{ url('/') }}" class="mobile-menu__brand">
             <img src="{{ asset('storage/src/logo.svg') }}" alt="DOMEXO" class="mobile-menu__logo">
             <div class="mobile-menu__brand-text">
-                <span class="mobile-menu__brand-name">DOMI<span>EXO</span></span>
+                <span class="mobile-menu__brand-name">DOM<span>EXO</span></span>
                 <span class="mobile-menu__brand-tag">Home &bull; Kitchen &bull; Bath</span>
             </div>
         </a>
