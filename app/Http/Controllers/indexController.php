@@ -1,0 +1,51 @@
+<?php
+
+namespace App\Http\Controllers;
+
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Http;
+use App\Services\ProductListingService;
+
+class indexController extends Controller
+{
+    public function checkout()
+    {
+        return view('checkout');
+    }
+
+    public function getCities()
+    {
+        $response = Http::post('https://api.novaposhta.ua/v2.0/json/', [
+            'apiKey' => env('NOVA_POSHTA_API_KEY'),
+            'modelName' => 'Address',
+            'calledMethod' => 'getCities',
+        ]);
+
+        $data = $response['data'];
+
+        $formatted = collect($data)->map(function ($city) {
+            $type = $city['SettlementTypeDescription'] ?? 'місто';
+            $label = $city['Description'] . " ({$type})";
+            return [
+                'Ref' => $city['Ref'],
+                'Description' => $label,
+            ];
+        });
+
+        return response()->json($formatted);
+    }
+
+    public function getWarehouses(Request $request)
+    {
+        $response = Http::post('https://api.novaposhta.ua/v2.0/json/', [
+            'apiKey' => env('NOVA_POSHTA_API_KEY'),
+            'modelName' => 'Address',
+            'calledMethod' => 'getWarehouses',
+            'methodProperties' => [
+                'CityRef' => $request->cityRef,
+            ],
+        ]);
+
+        return $response['data'];
+    }
+}

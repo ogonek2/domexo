@@ -1,0 +1,182 @@
+<template>
+    <div v-if="product" class="product-page">
+        <nav class="product-page__breadcrumbs" aria-label="Breadcrumb">
+            <div class="mx-auto max-w-site px-4 py-3 sm:px-6 lg:px-8">
+                <ol class="product-page__crumb-list">
+                    <li>
+                        <a href="/" @click="onCrumbClick($event, '/')"><AppIcon name="home" :size="16" /></a>
+                    </li>
+                    <template v-for="(crumb, index) in breadcrumbs" :key="index">
+                        <li><AppIcon name="chevron-right" :size="14" class="product-page__crumb-sep" /></li>
+                        <li>
+                            <a v-if="crumb.url" :href="crumb.url" @click="onCrumbClick($event, crumb.url)">{{ crumb.label }}</a>
+                            <span v-else class="product-page__crumb-current" aria-current="page">{{ crumb.label }}</span>
+                        </li>
+                    </template>
+                </ol>
+            </div>
+        </nav>
+
+        <section class="product-page__main">
+            <div class="mx-auto max-w-site px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+                <div class="product-page__grid">
+                    <ProductGallery
+                        :images="images"
+                        :alt="product.name"
+                        :discount="product.discount || 0"
+                        :is-wholesale="Boolean(product.is_wholesale && product.wholesale_price)"
+                        :placeholder="placeholder" />
+
+                    <div class="product-page__buy">
+                        <h1 class="product-page__title">{{ product.name }}</h1>
+
+                        <div class="product-page__meta">
+                            <span class="product-page__articule">Артикул: <strong>{{ product.articule || '—' }}</strong></span>
+                            <span class="product-page__stock">
+                                <span class="pcard__stock-dot" :class="product.inStock ? 'pcard__stock-dot--yes' : 'pcard__stock-dot--no'"></span>
+                                {{ product.inStock ? 'В наявності' : 'Немає в наявності' }}
+                            </span>
+                        </div>
+
+                        <div class="product-page__price-block">
+                            <div class="product-page__price-row">
+                                <span class="product-page__price">{{ formatPrice(product.finalPrice) }}</span>
+                                <span class="product-page__currency">грн</span>
+                                <span class="product-page__unit">/ {{ product.unit_name }}</span>
+                            </div>
+                            <p v-if="product.discount > 0" class="product-page__old-price">{{ formatPrice(product.price) }} грн</p>
+                            <p class="product-page__min-order">Замовлення від 1 {{ product.unit_name }}</p>
+
+                            <div v-if="product.is_wholesale && product.wholesale_price && product.wholesale_min_quantity" class="product-page__wholesale">
+                                <div class="product-page__wholesale-label">
+                                    <AppIcon name="package" :size="16" />
+                                    Оптова ціна
+                                </div>
+                                <div class="product-page__wholesale-row">
+                                    <span class="product-page__wholesale-price">{{ formatPrice(product.wholesale_price) }} грн</span>
+                                    <span class="product-page__wholesale-from">від {{ product.wholesale_min_quantity }} {{ product.unit_name_plural }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <p v-if="product.units_per_box" class="product-page__box-info">
+                            <AppIcon name="info" :size="16" />
+                            У ящику: {{ product.units_per_box }} {{ product.unit_name_plural }}
+                        </p>
+
+                        <div class="product-page__buy-actions">
+                            <ProductBuyBox :product-data="buyBoxProduct" />
+                        </div>
+
+                        <p class="product-page__min-sum">
+                            <AppIcon name="info" :size="14" />
+                            Мінімальна сума замовлення — 1000 грн
+                        </p>
+
+                        <ul class="product-page__trust">
+                            <li><AppIcon name="truck" :size="16" /> Доставка по Україні</li>
+                            <li><AppIcon name="shield-check" :size="16" /> Гарантія якості</li>
+                            <li><AppIcon name="rotate-ccw" :size="16" /> Повернення 14 днів</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="product-page__details">
+            <div class="mx-auto max-w-site px-4 py-10 sm:px-6 lg:px-8 lg:py-14">
+                <div class="product-page__details-grid">
+                    <div v-if="characteristics.length" class="product-page__section">
+                        <h2 class="product-page__section-title">Характеристики</h2>
+                        <table class="product-page__specs">
+                            <tbody>
+                                <tr v-for="(char, index) in characteristics" :key="index">
+                                    <th>{{ char.name }}</th>
+                                    <td>{{ char.value }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="product-page__section" :class="{ 'product-page__section--full': !characteristics.length }">
+                        <h2 class="product-page__section-title">Опис</h2>
+                        <div v-if="product.description" class="product-page__description prose max-w-none" v-html="product.description"></div>
+                        <p v-else class="text-[#64748b]">Опис товару відсутній.</p>
+                    </div>
+                </div>
+
+                <div class="product-page__delivery">
+                    <div class="product-page__delivery-col">
+                        <h3 class="product-page__delivery-title">Доставка</h3>
+                        <ul class="product-page__delivery-list">
+                            <li><AppIcon name="truck" :size="18" /> Нова Пошта — 1–3 робочих дні</li>
+                            <li><AppIcon name="map-pin" :size="18" /> Самовивіз з магазину</li>
+                        </ul>
+                    </div>
+                    <div class="product-page__delivery-col">
+                        <h3 class="product-page__delivery-title">Оплата</h3>
+                        <ul class="product-page__delivery-list">
+                            <li><AppIcon name="banknote" :size="18" /> Готівкою при отриманні</li>
+                            <li><AppIcon name="credit-card" :size="18" /> Банківською карткою</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section v-if="recommendedProducts.length" class="product-page__similar">
+            <div class="mx-auto max-w-site px-4 py-10 sm:px-6 lg:px-8 lg:py-12">
+                <h2 class="product-page__similar-title font-heading">Схожі товари</h2>
+                <ProductList :products="recommendedProducts" :show-new-badge="false" />
+            </div>
+        </section>
+    </div>
+</template>
+
+<script>
+import { computed } from 'vue';
+import { useRouter } from 'vue-router';
+import { spaState } from '../spa/spaStore.js';
+import AppIcon from '../components/AppIcon.vue';
+import ProductGallery from '../components/ProductGallery.vue';
+import ProductBuyBox from '../components/ProductBuyBox.vue';
+import ProductList from '../components/ProductList.vue';
+
+export default {
+    name: 'ProductRoutePage',
+    components: { AppIcon, ProductGallery, ProductBuyBox, ProductList },
+    setup() {
+        const router = useRouter();
+        const data = computed(() => spaState.pageData || {});
+
+        const onCrumbClick = (event, url) => {
+            if (!url) return;
+            try {
+                const parsed = new URL(url, window.location.origin);
+                if (parsed.origin !== window.location.origin) return;
+                event.preventDefault();
+                router.push(parsed.pathname + parsed.search);
+            } catch {
+                // default navigation
+            }
+        };
+
+        return {
+            product: computed(() => data.value.product || null),
+            images: computed(() => data.value.images || []),
+            characteristics: computed(() => data.value.characteristics || []),
+            recommendedProducts: computed(() => data.value.recommendedProducts || []),
+            breadcrumbs: computed(() => data.value.breadcrumbs || []),
+            buyBoxProduct: computed(() => data.value.buyBoxProduct || {}),
+            placeholder: 'https://via.placeholder.com/800x800/ffffff/1E1E1E?text=Немає+фото',
+            onCrumbClick,
+        };
+    },
+    methods: {
+        formatPrice(value) {
+            const num = Number(value) || 0;
+            return num.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        },
+    },
+};
+</script>

@@ -1,0 +1,369 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Category;
+use App\Models\Product;
+use App\Models\productImage;
+use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
+
+class SpaPageService
+{
+    public function __construct(private readonly ProductListingService $listing)
+    {
+    }
+
+    public function homeMeta(): array
+    {
+        return [
+            'title' => 'DOMEXO — Товари для дому, кухні та ванної',
+            'description' => 'Якісні товари для дому, кухні та ванної оптом і в роздріб. Широкий асортимент, надійні постачальники, вигідні ціни та швидка доставка по Україні.',
+        ];
+    }
+
+    public function homePayload(): array
+    {
+        $popularProducts = Product::count() > 0 ? $this->listing->recommended(10) : collect();
+
+        $newProducts = $this->homeRibbonQuery()
+            ->where('created_at', '>=', now()->subDays(60))
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        $saleProducts = $this->homeRibbonQuery()
+            ->where('discount', '>', 0)
+            ->orderByDesc('discount')
+            ->limit(10)
+            ->get();
+
+        $wholesaleProducts = $this->homeRibbonQuery()
+            ->where('is_wholesale', 1)
+            ->orderByDesc('created_at')
+            ->limit(10)
+            ->get();
+
+        $this->listing->attachPrimaryCategory($newProducts);
+        $this->listing->attachPrimaryCategory($saleProducts);
+        $this->listing->attachPrimaryCategory($wholesaleProducts);
+
+        $categories = get_all_category()
+            ->whereNull('parent_id')
+            ->take(12)
+            ->map(fn (Category $c) => get_category_card_data($c))
+            ->values()
+            ->all();
+
+        return [
+            'popularProducts' => $popularProducts instanceof Collection ? $popularProducts->values()->all() : [],
+            'newProducts' => $newProducts->values()->all(),
+            'saleProducts' => $saleProducts->values()->all(),
+            'wholesaleProducts' => $wholesaleProducts->values()->all(),
+            'categories' => $categories,
+            'routes' => [
+                'catalog' => route('catalog'),
+            ],
+        ];
+    }
+
+    private function homeRibbonQuery()
+    {
+        return Product::query()
+            ->select([
+                'id', 'name', 'price', 'discount', 'image_path', 'url', 'articule',
+                'availability', 'is_wholesale', 'wholesale_price', 'wholesale_min_quantity',
+                'units_per_box', 'unit_name', 'unit_name_plural', 'created_at',
+            ])
+            ->whereIn('availability', ['in_stock', '1', 1]);
+    }
+
+    public function catalogMeta(): array
+    {
+        return [
+            'title' => 'Каталог товарів — DOMEXO',
+            'description' => 'Широкий вибір товарів для дому, кухні та ванної. Якісна продукція, вигідні ціни та швидка доставка по Україні.',
+        ];
+    }
+
+    public function catalogPayload(Request $request): array
+    {
+        $query = $this->listing->catalogQuery($request);
+        // Category is navigated via URL, not query filter.
+        $this->listing->applyFilters($query, $request);
+        $this->listing->applySort($query, (string) $request->get('sort', 'default'));
+
+        $paginator = $query->paginate(45);
+        $this->listing->attachPrimaryCategory($paginator->getCollection());
+        $paginator->appends($request->query());
+
+        $categories = get_all_category()->whereNull('parent_id');
+        $popularProducts = Product::count() > 0 ? $this->listing->recommended(8) : collect();
+        $categoryTree = get_category_filter_tree();
+
+        return $this->catalogConfigFromPaginator(
+            $paginator,
+            $categories->map(fn ($c) => get_category_card_data($c))->values()->all(),
+            $popularProducts instanceof Collection ? $popularProducts->values()->all() : [],
+            route('catalog'),
+            '/api/spa/catalog',
+            true,
+            true,
+            [['label' => 'Каталог']],
+            [
+                'eyebrow' => 'DOMEXO',
+                'title' => 'Каталог товарів',
+                'subtitle' => 'Товари для дому, кухні та ванної — оптом і в роздріб',
+                'stat' => $paginator->total(),
+            ],
+            'Розділи',
+            'Категорії',
+            $categoryTree,
+            null,
+        );
+    }
+
+    public function categoryMeta(Category $category): array
+    {
+        return [
+            'title' => $category->name . ' — DOMEXO',
+            'description' => $category->description
+                ?? 'Купити ' . $category->name . ' в інтернет-магазині DOMEXO. Якісні товари для дому з доставкою по Україні.',
+        ];
+    }
+
+    public function categoryPayload(Request $request, string $categorySlug): array
+    {
+        $category = Category::where('url', $categorySlug)->firstOrFail();
+
+        $query = $this->listing->queryForCategory($category);
+        $this->listing->applyAvailability($query, $request);
+        $this->listing->applyFilters($query, $request);
+        $this->listing->applySort($query, (string) ($request->get('sort') ?: 'default'));
+
+        $paginator = $query->paginate(45);
+        $this->listing->attachPrimaryCategory($paginator->getCollection());
+        $paginator->appends($request->query());
+
+        $childCategories = $category->childCategories()
+            ->where('is_active', true)
+            ->orderBy('name')
+            ->get();
+
+        // Full tree so the picker can jump to any category.
+        $categoryTree = get_category_filter_tree();
+
+        $parents = $category->getParents();
+        $root = $parents->first() ?: $category;
+
+        return $this->catalogConfigFromPaginator(
+            $paginator,
+            $childCategories->map(fn ($c) => get_category_card_data($c))->values()->all(),
+            [],
+            route('catalog_category_page', $category->url),
+            '/api/spa/category/' . $category->url,
+            false,
+            false,
+            build_category_breadcrumbs($category),
+            [
+                'eyebrow' => $root->id === $category->id ? 'Категорія' : $root->name,
+                'title' => $category->name,
+                'subtitle' => $category->description,
+                'stat' => $paginator->total(),
+            ],
+            'Підрозділи',
+            'Підкатегорії',
+            $categoryTree,
+            [
+                'name' => $category->name,
+                'url' => $category->url,
+                'href' => route('catalog_category_page', $category->url),
+                'parent_url' => $category->parentCategory?->url,
+            ],
+        );
+    }
+
+    public function productMeta(Product $product): array
+    {
+        return [
+            'title' => $product->name . ' — DOMEXO',
+            'description' => $product->description
+                ? strip_tags(mb_substr($product->description, 0, 160))
+                : $product->name,
+        ];
+    }
+
+    public function productPayload(string $categorySlug, string $productSlug): array
+    {
+        $product = Product::where('url', $productSlug)->firstOrFail();
+        $images = productImage::where('product_id', $product->id)->get();
+        $characteristics = $product->getTemplateCharacteristics();
+        $this->listing->attachPrimaryCategory(collect([$product]));
+
+        $category = $product->categories->first();
+        $categoryUrl = $product->category_url ?? ($category?->url ?? 'catalog');
+        $categoryName = $category?->name;
+
+        $allImages = [];
+        if ($product->image_path) {
+            $allImages[] = $product->image_path;
+        }
+        foreach ($images as $image) {
+            if (!in_array($image->src, $allImages, true)) {
+                $allImages[] = $image->src;
+            }
+        }
+
+        $validCharacteristics = $this->buildCharacteristics($product, $characteristics);
+
+        $recommendedProducts = collect();
+        if ($product->categories->count() > 0) {
+            $categoryIds = $product->categories->pluck('id')->toArray();
+            $recommendedProducts = Product::whereHas('categories', function ($query) use ($categoryIds) {
+                $query->whereIn('categories.id', $categoryIds);
+            })
+                ->where('id', '!=', $product->id)
+                ->where('availability', 'in_stock')
+                ->select([
+                    'id', 'name', 'price', 'discount', 'image_path', 'url',
+                    'articule', 'availability', 'is_wholesale', 'wholesale_price', 'wholesale_min_quantity',
+                    'units_per_box', 'unit_name', 'unit_name_plural',
+                ])
+                ->inRandomOrder()
+                ->limit(8)
+                ->get();
+            $this->listing->attachPrimaryCategory($recommendedProducts);
+        }
+
+        $unitName = $product->unit_name ?? 'шт';
+        $unitPlural = $product->unit_name_plural ?? $unitName;
+        $finalPrice = $product->discount > 0
+            ? $product->price * (1 - $product->discount / 100)
+            : $product->price;
+        $inStock = !in_array($product->availability, [2, '2', 'out_of_stock', 0], true);
+
+        return [
+            'product' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'articule' => $product->articule,
+                'description' => $product->description,
+                'price' => $product->price,
+                'discount' => $product->discount,
+                'finalPrice' => $finalPrice,
+                'image_path' => $product->image_path,
+                'availability' => $product->availability,
+                'inStock' => $inStock,
+                'is_wholesale' => $product->is_wholesale,
+                'wholesale_price' => $product->wholesale_price,
+                'wholesale_min_quantity' => $product->wholesale_min_quantity,
+                'units_per_box' => $product->units_per_box,
+                'unit_name' => $unitName,
+                'unit_name_plural' => $unitPlural,
+                'url' => $product->url,
+                'category_url' => $categoryUrl,
+            ],
+            'images' => $allImages,
+            'characteristics' => $validCharacteristics,
+            'recommendedProducts' => $recommendedProducts->values()->all(),
+            'breadcrumbs' => $category
+                ? array_merge(build_category_breadcrumbs($category, true), [['label' => $product->name]])
+                : [
+                    ['label' => 'Каталог', 'url' => route('catalog')],
+                    ['label' => $product->name],
+                ],
+            'buyBoxProduct' => [
+                'id' => $product->id,
+                'name' => $product->name,
+                'price' => $product->price,
+                'discount' => $product->discount,
+                'image_path' => $product->image_path,
+                'articule' => $product->articule,
+                'availability' => $product->availability,
+                'is_wholesale' => $product->is_wholesale,
+                'wholesale_price' => $product->wholesale_price,
+                'wholesale_min_quantity' => $product->wholesale_min_quantity,
+                'url' => $product->url,
+                'category_url' => $categoryUrl,
+                'unit_name' => $unitName,
+                'unit_name_plural' => $unitPlural,
+            ],
+        ];
+    }
+
+    private function catalogConfigFromPaginator(
+        $paginator,
+        array $categories,
+        array $popularProducts,
+        string $filterBaseUrl,
+        string $spaApiUrl,
+        bool $showNewest,
+        bool $showCta,
+        array $breadcrumbs,
+        array $hero,
+        string $categoriesTitle = 'Розділи',
+        string $categoriesHeading = 'Категорії',
+        array $categoryTree = [],
+        ?array $currentCategory = null,
+    ): array {
+        return [
+            'filterBaseUrl' => $filterBaseUrl,
+            'spaApiUrl' => $spaApiUrl,
+            'showNewest' => $showNewest,
+            'showCta' => $showCta,
+            'breadcrumbs' => $breadcrumbs,
+            'hero' => $hero,
+            'categories' => $categories,
+            'categoryTree' => $categoryTree,
+            'currentCategory' => $currentCategory,
+            'categoriesTitle' => $categoriesTitle,
+            'categoriesHeading' => $categoriesHeading,
+            'products' => $paginator->items(),
+            'pagination' => [
+                'current_page' => $paginator->currentPage(),
+                'last_page' => $paginator->lastPage(),
+                'per_page' => $paginator->perPage(),
+                'total' => $paginator->total(),
+                'from' => $paginator->firstItem(),
+                'to' => $paginator->lastItem(),
+            ],
+            'popularProducts' => $popularProducts,
+            'routes' => [
+                'home' => url('/'),
+                'catalog' => route('catalog'),
+                'contacts' => route('kontaktna_informatsiia'),
+            ],
+        ];
+    }
+
+    private function buildCharacteristics(Product $product, array $templateCharacteristics): array
+    {
+        $validCharacteristics = [];
+
+        if (!empty($product->characteristics) && is_array($product->characteristics)) {
+            foreach ($product->characteristics as $charKey => $charValue) {
+                if (!is_null($charValue) && $charValue !== '' && $charValue !== 'Не вказано' && $charValue !== '-') {
+                    $validCharacteristics[] = [
+                        'name' => is_string($charKey) ? ucwords(str_replace(['_', '-'], ' ', $charKey)) : 'Параметр',
+                        'value' => is_array($charValue) ? implode(', ', $charValue) : $charValue,
+                    ];
+                }
+            }
+        }
+
+        if (empty($validCharacteristics) && !empty($templateCharacteristics)) {
+            foreach ($templateCharacteristics as $char) {
+                $value = (is_array($product->characteristics) ? ($product->characteristics[$char['key']] ?? null) : null)
+                    ?? ($char['default_value'] ?? '-');
+                if ($value !== '-' && $value !== '' && $value !== 'Не вказано') {
+                    $validCharacteristics[] = [
+                        'name' => $char['name'] ?? 'Не вказано',
+                        'value' => is_array($value) ? implode(', ', $value) : $value,
+                    ];
+                }
+            }
+        }
+
+        return $validCharacteristics;
+    }
+}

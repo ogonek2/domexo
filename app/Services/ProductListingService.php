@@ -1,0 +1,267 @@
+<?php
+
+namespace App\Services;
+
+use App\Models\Category;
+use App\Models\Product;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Http\Request;
+
+class ProductListingService
+{
+    /**
+     * Base query used everywhere (consistent columns + default "in_stock").
+     */
+    public function baseQuery(): Builder
+    {
+        return Product::query()
+            ->select([
+                'id',
+                'name',
+                'price',
+                'discount',
+                'image_path',
+                'url',
+                'articule',
+                'availability',
+                'is_wholesale',
+                'wholesale_price',
+                'wholesale_min_quantity',
+                'units_per_box',
+                'unit_name',
+                'unit_name_plural',
+            ])
+            // Legacy data can contain 1/2 instead of in_stock/out_of_stock.
+            ->whereIn('availability', ['in_stock', '1', 1]);
+    }
+
+    /**
+     * Catalog listing query with optional availability scope.
+     */
+    public function catalogQuery(Request $request): Builder
+    {
+        $query = Product::query()->select([
+            'id',
+            'name',
+            'price',
+            'discount',
+            'image_path',
+            'url',
+            'articule',
+            'availability',
+            'is_wholesale',
+            'wholesale_price',
+            'wholesale_min_quantity',
+            'units_per_box',
+            'unit_name',
+            'unit_name_plural',
+            'created_at',
+        ]);
+
+        $this->applyAvailability($query, $request);
+
+        return $query;
+    }
+
+    /**
+     * Availability: default in_stock; all | out supported.
+     */
+    public function applyAvailability(Builder $query, Request $request): Builder
+    {
+        $availability = (string) $request->input('availability', '');
+
+        if ($availability === 'all') {
+            return $query;
+        }
+
+        if ($availability === 'out') {
+            return $query->whereIn('availability', ['out_of_stock', '2', 2, 0, '0']);
+        }
+
+        return $query->whereIn('availability', ['in_stock', '1', 1]);
+    }
+
+    /**
+     * Apply common filters from request (price, discount, wholesale, new).
+     */
+    public function applyFilters(Builder $query, Request $request): Builder
+    {
+        if ($request->filled('price_min')) {
+            $query->whereRaw('CAST(price AS DECIMAL(10,2)) >= ?', [(float) $request->input('price_min')]);
+        }
+
+        if ($request->filled('price_max')) {
+            $query->whereRaw('CAST(price AS DECIMAL(10,2)) <= ?', [(float) $request->input('price_max')]);
+        }
+
+        if ($request->boolean('discount')) {
+            $query->where('discount', '>', 0);
+        }
+
+        if ($request->boolean('wholesale')) {
+            $query->where('is_wholesale', 1);
+        }
+
+        if ($request->boolean('new')) {
+            $query->where('created_at', '>=', now()->subDays(30));
+        }
+
+        return $query;
+    }
+
+    public function applyCategorySlug(Builder $query, string $slug): Builder
+    {
+        $category = Category::query()->where('url', $slug)->first();
+        if (!$category) {
+            return $query;
+        }
+
+        $ids = $this->categoryIdsWithDescendants($category);
+
+        return $query->whereHas('categories', function (Builder $q) use ($ids) {
+            $q->whereIn('categories.id', $ids);
+        });
+    }
+
+    /**
+     * Apply sorting. Default is newest unless "random" explicitly requested.
+     */
+    public function applySort(Builder $query, string $sort): Builder
+    {
+        return match ($sort) {
+            'price_asc' => $query->orderByRaw('CAST(price AS DECIMAL(10,2)) ASC'),
+            'price_desc' => $query->orderByRaw('CAST(price AS DECIMAL(10,2)) DESC'),
+            'name_asc' => $query->orderBy('name', 'asc'),
+            'name_desc' => $query->orderBy('name', 'desc'),
+            'random' => $query->inRandomOrder(),
+            default => $query->orderBy('created_at', 'desc'),
+        };
+    }
+
+    /**
+     * Products for a category, including all descendants (any depth).
+     */
+    public function queryForCategory(Category $category): Builder
+    {
+        $ids = $this->categoryIdsWithDescendants($category);
+
+        return Product::query()
+            ->select([
+                'id',
+                'name',
+                'price',
+                'discount',
+                'image_path',
+                'url',
+                'articule',
+                'availability',
+                'is_wholesale',
+                'wholesale_price',
+                'wholesale_min_quantity',
+                'units_per_box',
+                'unit_name',
+                'unit_name_plural',
+                'created_at',
+            ])
+            ->whereHas('categories', function (Builder $q) use ($ids) {
+                $q->whereIn('categories.id', $ids);
+            });
+    }
+
+    /**
+     * Fast descendant-id collection for adjacency-list categories.
+     */
+    public function categoryIdsWithDescendants(Category $category): array
+    {
+        $ids = [$category->id];
+        $frontier = [$category->id];
+
+        while (!empty($frontier)) {
+            $children = Category::query()
+                ->whereIn('parent_id', $frontier)
+                ->pluck('id')
+                ->all();
+
+            $children = array_values(array_diff($children, $ids));
+            if (empty($children)) {
+                break;
+            }
+
+            $ids = array_merge($ids, $children);
+            $frontier = $children;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Autocomplete search (AJAX).
+     */
+    public function autocomplete(string $q, int $limit = 10)
+    {
+        $q = trim($q);
+        if (mb_strlen($q) < 2) {
+            return collect();
+        }
+
+        return $this->baseQuery()
+            ->where(function (Builder $b) use ($q) {
+                $b->where('name', 'like', "%{$q}%")
+                    ->orWhere('articule', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%");
+            })
+            ->select(['id', 'name', 'price', 'image_path', 'discount', 'url', 'articule', 'availability'])
+            ->orderByRaw(
+                "CASE
+                    WHEN name LIKE ? THEN 1
+                    WHEN name LIKE ? THEN 2
+                    WHEN articule LIKE ? THEN 3
+                    ELSE 4
+                END",
+                [$q . '%', '%' . $q . '%', '%' . $q . '%'],
+            )
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * Full search results (page).
+     */
+    public function queryForSearch(string $q): Builder
+    {
+        $q = trim($q);
+
+        return $this->baseQuery()
+            ->where(function (Builder $b) use ($q) {
+                $b->where('name', 'like', "%{$q}%")
+                    ->orWhere('articule', 'like', "%{$q}%")
+                    ->orWhere('description', 'like', "%{$q}%");
+            });
+    }
+
+    /**
+     * Recommended products (API).
+     */
+    public function recommended(int $limit = 12)
+    {
+        $products = $this->baseQuery()
+            ->whereHas('categories')
+            ->inRandomOrder()
+            ->limit($limit)
+            ->get();
+
+        $this->attachPrimaryCategory($products);
+
+        return $products;
+    }
+
+    public function attachPrimaryCategory($products): void
+    {
+        $products->each(function ($product) {
+            $category = $product->categories()->first();
+            $product->category_name = $category?->name ?? 'Без категории';
+            $product->category_url = $category?->url ?? 'catalog';
+        });
+    }
+}
+

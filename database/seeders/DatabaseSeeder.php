@@ -1,0 +1,29 @@
+<?php
+
+namespace Database\Seeders;
+
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
+use Illuminate\Database\Seeder;
+
+class DatabaseSeeder extends Seeder
+{
+    use WithoutModelEvents;
+
+    /**
+     * Seed the application's database.
+     */
+    public function run(): void
+    {
+        $this->call([
+            AdminUserSeeder::class,
+            TemplateSeeder::class,
+            CategorySeeder::class,
+            CatalogSeeder::class,
+            PackageSeeder::class,
+            ProductSeeder::class,
+            OrdersSeeder::class,
+        ]);
+
+        \Illuminate\Support\Facades\Cache::forget('site.mega_menu');
+    }
+}
