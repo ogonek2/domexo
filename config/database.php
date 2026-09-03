@@ -61,17 +61,7 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
-                // Сервер БД стоит за прокси, который ломает серверные prepared
-                // statements: часть запросов падает с SQLSTATE[HY093] Invalid
-                // parameter number (например, обновление таблицы sessions).
-                PDO::ATTR_EMULATE_PREPARES => filter_var(
-                    env('DB_EMULATE_PREPARES', true),
-                    FILTER_VALIDATE_BOOLEAN
-                ),
-                // Без буферизации незакрытый SELECT (cursor/lazy/timeout) ломает
-                // следующий UPDATE sessions с ошибкой SQLSTATE[HY000] 2014.
-                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
-            ], static fn ($option) => $option !== null) : [],
+            ]) : [],
         ],
 
         'mariadb' => [

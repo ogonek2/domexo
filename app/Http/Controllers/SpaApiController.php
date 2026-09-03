@@ -43,16 +43,14 @@ class SpaApiController extends Controller
     public function product(string $category, string $product)
     {
         $data = $this->spa->productPayload($category, $product);
-        $name = $data['product']['name'] ?? 'Товар';
-        $description = $data['product']['description'] ?? null;
 
         return response()->json([
             'success' => true,
             'meta' => [
-                'title' => $name . ' — DOMEXO',
-                'description' => $description
-                    ? strip_tags(mb_substr($description, 0, 160))
-                    : $name,
+                'title' => ($data['product']['name'] ?? 'Товар') . ' — DOMEXO',
+                'description' => ! empty($data['product']['description'])
+                    ? strip_tags(mb_substr($data['product']['description'], 0, 160))
+                    : ($data['product']['name'] ?? 'Товар'),
             ],
             'data' => $data,
         ]);
