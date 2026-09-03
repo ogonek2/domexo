@@ -240,33 +240,52 @@ class SpaPageService
 
     public function productPayload(string $categorySlug, string $productSlug): array
     {
-        $product = Product::where('url', $productSlug)->firstOrFail();
-        $images = productImage::where('product_id', $product->id)->get();
-        $characteristics = $product->getTemplateCharacteristics();
+        $product = Product::query()
+            ->with([
+                'categories' => fn ($q) => $q->select([
+                    'categories.id',
+                    'categories.name',
+                    'categories.url',
+                    'categories.parent_id',
+                ]),
+                'categories.parentCategory',
+                'catalogs.template',
+                'categories.template',
+            ])
+            ->where('url', $productSlug)
+            ->firstOrFail();
+
+        $images = productImage::query()
+            ->where('product_id', $product->id)
+            ->get(['id', 'product_id', 'src']);
+
+        $template = $product->catalogs->first()?->template
+            ?? $product->categories->first()?->template;
+        $templateCharacteristics = is_array($template?->characteristics)
+            ? $template->characteristics
+            : [];
         $this->listing->attachPrimaryCategory(collect([$product]));
 
         $category = $product->categories->first();
         $categoryUrl = $product->category_url ?? ($category?->url ?? 'catalog');
-        $categoryName = $category?->name;
 
         $allImages = [];
         if ($product->image_path) {
             $allImages[] = $product->image_path;
         }
         foreach ($images as $image) {
-            if (!in_array($image->src, $allImages, true)) {
+            if (! in_array($image->src, $allImages, true)) {
                 $allImages[] = $image->src;
             }
         }
 
-        $validCharacteristics = $this->buildCharacteristics($product, $characteristics);
+        $validCharacteristics = $this->buildCharacteristics($product, $templateCharacteristics);
 
         $recommendedProducts = collect();
-        if ($product->categories->count() > 0) {
-            $categoryIds = $product->categories->pluck('id')->toArray();
-            $recommendedProducts = Product::whereHas('categories', function ($query) use ($categoryIds) {
-                $query->whereIn('categories.id', $categoryIds);
-            })
+        if ($product->categories->isNotEmpty()) {
+            $categoryIds = $product->categories->pluck('id')->all();
+            $recommendedProducts = Product::query()
+                ->whereHas('categories', fn ($query) => $query->whereIn('categories.id', $categoryIds))
                 ->where('id', '!=', $product->id)
                 ->whereIn('availability', ['in_stock', '1', 1])
                 ->select([
@@ -285,7 +304,7 @@ class SpaPageService
         $finalPrice = $product->discount > 0
             ? $product->price * (1 - $product->discount / 100)
             : $product->price;
-        $inStock = !in_array($product->availability, [2, '2', 'out_of_stock', 0], true);
+        $inStock = ! in_array($product->availability, [2, '2', 'out_of_stock', 0], true);
         $conditionLabel = match ($product->condition_item) {
             'used' => 'Вживаний',
             'refurbished' => 'Відновлений',
