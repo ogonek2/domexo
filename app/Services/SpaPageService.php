@@ -24,7 +24,7 @@ class SpaPageService
 
     public function homePayload(): array
     {
-        $popularProducts = Product::count() > 0 ? $this->listing->recommended(10) : collect();
+        $popularProducts = $this->listing->recommended(10);
 
         $newProducts = $this->homeRibbonQuery()
             ->where('created_at', '>=', now()->subDays(60))
@@ -51,7 +51,16 @@ class SpaPageService
         $categories = get_all_category()
             ->whereNull('parent_id')
             ->take(12)
-            ->map(fn (Category $c) => get_category_card_data($c))
+            ->values();
+
+        $categoryImages = $this->categoryPreviewImages($categories->pluck('id')->all());
+
+        $categories = $categories
+            ->map(function (Category $c) use ($categoryImages) {
+                $data = get_category_card_data($c, $categoryImages[$c->id] ?? null);
+
+                return $data;
+            })
             ->values()
             ->all();
 
@@ -78,6 +87,38 @@ class SpaPageService
             ->whereIn('availability', ['in_stock', '1', 1]);
     }
 
+    /**
+     * Одно превью на категорию одним запросом вместо N+1 в get_category_card_data.
+     *
+     * @param  array<int, int>  $categoryIds
+     * @return array<int, string>
+     */
+    private function categoryPreviewImages(array $categoryIds): array
+    {
+        if ($categoryIds === []) {
+            return [];
+        }
+
+        $rows = Product::query()
+            ->select(['products.image_path', 'category_product.category_id'])
+            ->join('category_product', 'category_product.product_id', '=', 'products.id')
+            ->whereIn('category_product.category_id', $categoryIds)
+            ->whereNotNull('products.image_path')
+            ->where('products.image_path', '!=', '')
+            ->orderByDesc('products.id')
+            ->get();
+
+        $images = [];
+        foreach ($rows as $row) {
+            $categoryId = (int) $row->category_id;
+            if (! isset($images[$categoryId])) {
+                $images[$categoryId] = $row->image_path;
+            }
+        }
+
+        return $images;
+    }
+
     public function catalogMeta(): array
     {
         return [
@@ -97,13 +138,17 @@ class SpaPageService
         $this->listing->attachPrimaryCategory($paginator->getCollection());
         $paginator->appends($request->query());
 
-        $categories = get_all_category()->whereNull('parent_id');
-        $popularProducts = Product::count() > 0 ? $this->listing->recommended(8) : collect();
+        $categories = get_all_category()->whereNull('parent_id')->values();
+        $categoryImages = $this->categoryPreviewImages($categories->pluck('id')->all());
+        $popularProducts = $this->listing->recommended(8);
         $categoryTree = get_category_filter_tree();
 
         return $this->catalogConfigFromPaginator(
             $paginator,
-            $categories->map(fn ($c) => get_category_card_data($c))->values()->all(),
+            $categories
+                ->map(fn ($c) => get_category_card_data($c, $categoryImages[$c->id] ?? null))
+                ->values()
+                ->all(),
             $popularProducts instanceof Collection ? $popularProducts->values()->all() : [],
             route('catalog'),
             '/api/spa/catalog',
@@ -223,13 +268,13 @@ class SpaPageService
                 $query->whereIn('categories.id', $categoryIds);
             })
                 ->where('id', '!=', $product->id)
-                ->where('availability', 'in_stock')
+                ->whereIn('availability', ['in_stock', '1', 1])
                 ->select([
                     'id', 'name', 'price', 'discount', 'image_path', 'url',
                     'articule', 'availability', 'is_wholesale', 'wholesale_price', 'wholesale_min_quantity',
                     'units_per_box', 'unit_name', 'unit_name_plural',
                 ])
-                ->inRandomOrder()
+                ->orderByDesc('id')
                 ->limit(8)
                 ->get();
             $this->listing->attachPrimaryCategory($recommendedProducts);

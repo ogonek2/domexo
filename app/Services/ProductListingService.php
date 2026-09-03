@@ -241,12 +241,15 @@ class ProductListingService
 
     /**
      * Recommended products (API).
+     *
+     * Не используем ORDER BY RAND() — на удалённой MySQL это легко
+     * укладывает запрос в десятки секунд и провоцирует таймауты/HY000 2014.
      */
     public function recommended(int $limit = 12)
     {
         $products = $this->baseQuery()
             ->whereHas('categories')
-            ->inRandomOrder()
+            ->orderByDesc('id')
             ->limit($limit)
             ->get();
 
@@ -257,8 +260,22 @@ class ProductListingService
 
     public function attachPrimaryCategory($products): void
     {
-        $products->each(function ($product) {
-            $category = $product->categories()->first();
+        $collection = $products instanceof \Illuminate\Support\Collection
+            ? $products
+            : collect($products);
+
+        if ($collection->isEmpty()) {
+            return;
+        }
+
+        $collection->loadMissing([
+            'categories' => fn ($query) => $query
+                ->select(['categories.id', 'categories.name', 'categories.url'])
+                ->orderBy('categories.id'),
+        ]);
+
+        $collection->each(function ($product) {
+            $category = $product->categories->first();
             $product->category_name = $category?->name ?? 'Без категории';
             $product->category_url = $category?->url ?? 'catalog';
         });

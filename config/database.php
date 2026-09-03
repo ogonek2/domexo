@@ -64,8 +64,14 @@ return [
                 // Сервер БД стоит за прокси, который ломает серверные prepared
                 // statements: часть запросов падает с SQLSTATE[HY093] Invalid
                 // parameter number (например, обновление таблицы sessions).
-                PDO::ATTR_EMULATE_PREPARES => env('DB_EMULATE_PREPARES', true),
-            ], fn ($option) => $option !== null) : [],
+                PDO::ATTR_EMULATE_PREPARES => filter_var(
+                    env('DB_EMULATE_PREPARES', true),
+                    FILTER_VALIDATE_BOOLEAN
+                ),
+                // Без буферизации незакрытый SELECT (cursor/lazy/timeout) ломает
+                // следующий UPDATE sessions с ошибкой SQLSTATE[HY000] 2014.
+                PDO::MYSQL_ATTR_USE_BUFFERED_QUERY => true,
+            ], static fn ($option) => $option !== null) : [],
         ],
 
         'mariadb' => [

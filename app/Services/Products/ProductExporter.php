@@ -80,7 +80,9 @@ class ProductExporter
      */
     private function rows(Builder $query): iterable
     {
-        foreach ($this->prepareQuery($query)->cursor() as $product) {
+        // lazyById (а не cursor): cursor держит unbuffered SELECT открытым,
+        // и любые доп. запросы/sessions UPDATE падают с SQLSTATE 2014.
+        foreach ($this->prepareQuery($query)->lazyById(200) as $product) {
             yield array_map(
                 fn (string $field): string => $this->value($product, $field),
                 $this->fields,

@@ -76,18 +76,27 @@ if (!function_exists('calculate_total_products_for_category')) {
 }
 
 if (!function_exists('get_category_card_data')) {
-    function get_category_card_data(Category $category): array
+    function get_category_card_data(Category $category, ?string $previewImage = null): array
     {
-        $categoryImage = null;
-        $latestProduct = $category->products()->latest()->first();
-        if ($latestProduct && $latestProduct->image_path) {
-            $categoryImage = $latestProduct->image_path;
+        $categoryImage = $previewImage;
+
+        if ($categoryImage === null) {
+            $categoryImage = $category->products()
+                ->whereNotNull('products.image_path')
+                ->where('products.image_path', '!=', '')
+                ->orderByDesc('products.id')
+                ->value('products.image_path');
         }
+
         if (!$categoryImage) {
             foreach ($category->childCategories()->where('is_active', true)->get() as $childCategory) {
-                $childProduct = $childCategory->products()->latest()->first();
-                if ($childProduct && $childProduct->image_path) {
-                    $categoryImage = $childProduct->image_path;
+                $childImage = $childCategory->products()
+                    ->whereNotNull('products.image_path')
+                    ->where('products.image_path', '!=', '')
+                    ->orderByDesc('products.id')
+                    ->value('products.image_path');
+                if ($childImage) {
+                    $categoryImage = $childImage;
                     break;
                 }
             }
