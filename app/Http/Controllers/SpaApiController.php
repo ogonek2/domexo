@@ -42,12 +42,19 @@ class SpaApiController extends Controller
 
     public function product(string $category, string $product)
     {
-        $productModel = \App\Models\Product::where('url', $product)->firstOrFail();
+        $data = $this->spa->productPayload($category, $product);
+        $name = $data['product']['name'] ?? 'Товар';
+        $description = $data['product']['description'] ?? null;
 
         return response()->json([
             'success' => true,
-            'meta' => $this->spa->productMeta($productModel),
-            'data' => $this->spa->productPayload($category, $product),
+            'meta' => [
+                'title' => $name . ' — DOMEXO',
+                'description' => $description
+                    ? strip_tags(mb_substr($description, 0, 160))
+                    : $name,
+            ],
+            'data' => $data,
         ]);
     }
 }

@@ -238,9 +238,41 @@ class SpaPageService
         ];
     }
 
-    public function productPayload(string $categorySlug, string $productSlug): array
+    /**
+     * Завантаження товару дрібними запитами: на ProxySQL хостингу
+     * `select *` з великим description/JSON падає з HY000 2035.
+     */
+    public function findProductForPage(string $productSlug): Product
     {
+        $id = Product::query()->where('url', $productSlug)->value('id');
+
+        if (! $id) {
+            abort(404);
+        }
+
         $product = Product::query()
+            ->select([
+                'id',
+                'name',
+                'articule',
+                'url',
+                'price',
+                'discount',
+                'image_path',
+                'availability',
+                'is_wholesale',
+                'wholesale_price',
+                'wholesale_min_quantity',
+                'units_per_box',
+                'min_order_quantity',
+                'unit_name',
+                'unit_name_plural',
+                'brand',
+                'country',
+                'weight',
+                'complectation',
+                'condition_item',
+            ])
             ->with([
                 'categories' => fn ($q) => $q->select([
                     'categories.id',
@@ -248,22 +280,37 @@ class SpaPageService
                     'categories.url',
                     'categories.parent_id',
                 ]),
-                'categories.parentCategory',
-                'catalogs.template',
-                'categories.template',
+                'categories.parentCategory' => fn ($q) => $q->select([
+                    'categories.id',
+                    'categories.name',
+                    'categories.url',
+                    'categories.parent_id',
+                ]),
             ])
-            ->where('url', $productSlug)
-            ->firstOrFail();
+            ->findOrFail($id);
+
+        // Важкі TEXT/JSON — окремими пакетами (ProxySQL HY000 2035 на select *).
+        // Читаємо через Query Builder, щоб не застосувати cast двічі.
+        $heavy = \Illuminate\Support\Facades\DB::table('products')
+            ->where('id', $id)
+            ->first(['description', 'characteristics']);
+
+        $attributes = $product->getAttributes();
+        $attributes['description'] = $heavy->description ?? null;
+        $attributes['characteristics'] = $heavy->characteristics ?? null;
+        $product->setRawAttributes($attributes, true);
+
+        return $product;
+    }
+
+    public function productPayload(string $categorySlug, string $productSlug): array
+    {
+        $product = $this->findProductForPage($productSlug);
 
         $images = productImage::query()
             ->where('product_id', $product->id)
             ->get(['id', 'product_id', 'src']);
 
-        $template = $product->catalogs->first()?->template
-            ?? $product->categories->first()?->template;
-        $templateCharacteristics = is_array($template?->characteristics)
-            ? $template->characteristics
-            : [];
         $this->listing->attachPrimaryCategory(collect([$product]));
 
         $category = $product->categories->first();
@@ -279,7 +326,7 @@ class SpaPageService
             }
         }
 
-        $validCharacteristics = $this->buildCharacteristics($product, $templateCharacteristics);
+        $validCharacteristics = $this->buildCharacteristics($product, []);
 
         $recommendedProducts = collect();
         if ($product->categories->isNotEmpty()) {
