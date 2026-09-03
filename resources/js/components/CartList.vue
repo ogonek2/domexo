@@ -1,97 +1,87 @@
 <template>
-    <div>
-        <!-- Cart Items List -->
-        <div v-if="cart.length > 0" class="space-y-3 max-h-96 overflow-y-auto pr-2">
-            <div v-for="item in cart" :key="item.id" 
-                 class="flex gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                <!-- Image -->
-                <div class="flex-shrink-0">
-                    <div class="w-16 h-16 bg-gradient-to-br from-gray-100 to-gray-200 rounded-lg overflow-hidden">
-                        <img v-if="item.image" 
-                             :src="item.image" 
-                             :alt="item.name"
-                             class="w-full h-full object-cover">
-                        <div v-else class="w-full h-full flex items-center justify-center">
-                            <i class="fas fa-image text-gray-400"></i>
-                        </div>
-                    </div>
+    <div class="checkout-cart">
+        <div v-if="cart.length > 0" class="checkout-cart__list">
+            <div v-for="item in cart" :key="item.id" class="checkout-cart__item">
+                <div class="checkout-cart__thumb">
+                    <img v-if="item.image" :src="item.image" :alt="item.name">
+                    <AppIcon v-else name="image" :size="22" icon-class="text-gray-300" />
                 </div>
 
-                <!-- Info -->
-                <div class="flex-1 min-w-0">
-                    <h4 class="font-semibold text-gray-900 text-sm mb-1 line-clamp-2">{{ item.name }}</h4>
-                    <div class="flex items-center gap-2 mb-2">
-                        <span class="text-sm font-bold text-emerald-600">{{ formatPrice(getItemPrice(item)) }} ₴</span>
-                        <span v-if="isWholesaleActive(item)" class="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full">
-                            <i class="fas fa-tags mr-1"></i>Опт
-                        </span>
+                <div class="checkout-cart__info">
+                    <h4 class="checkout-cart__name">{{ item.name }}</h4>
+                    <p v-if="item.articule" class="checkout-cart__articule">Артикул: {{ item.articule }}</p>
+                    <div class="checkout-cart__price-row">
+                        <span class="checkout-cart__price">{{ formatPrice(getItemPrice(item)) }} ₴</span>
+                        <span v-if="isWholesaleActive(item)" class="checkout-cart__opt">Опт</span>
                     </div>
 
-                    <!-- Quantity Controls -->
-                    <div class="flex items-center gap-2">
-                        <button @click="decrease(item.id)" 
-                                class="w-7 h-7 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
-                            <i class="fas fa-minus text-xs text-gray-600"></i>
-                        </button>
-                        <span class="text-sm font-semibold text-gray-900 min-w-[1.5rem] text-center">{{ item.quantity }}</span>
-                        <button @click="increase(item.id)" 
-                                class="w-7 h-7 bg-white border border-gray-300 rounded-lg hover:bg-gray-100 flex items-center justify-center transition-colors">
-                            <i class="fas fa-plus text-xs text-gray-600"></i>
-                        </button>
-                        <button @click="remove(item.id)" 
-                                class="ml-auto text-red-500 hover:text-red-700 transition-colors">
-                            <i class="fas fa-trash text-sm"></i>
+                    <div class="checkout-cart__actions">
+                        <div class="pcard__qty checkout-cart__qty">
+                            <button type="button" class="pcard__qty-btn" :disabled="item.quantity <= 1" @click="decrease(item.id)">
+                                <AppIcon name="minus" :size="12" />
+                            </button>
+                            <span class="pcard__qty-value">{{ item.quantity }}</span>
+                            <button type="button" class="pcard__qty-btn" @click="increase(item.id)">
+                                <AppIcon name="plus" :size="12" />
+                            </button>
+                        </div>
+                        <button type="button" class="checkout-cart__remove" @click="remove(item.id)" title="Видалити">
+                            <AppIcon name="trash" :size="14" />
                         </button>
                     </div>
                 </div>
             </div>
         </div>
 
-        <!-- Empty State -->
-        <div v-else class="text-center py-12">
-            <div class="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                <i class="fas fa-shopping-cart text-3xl text-gray-400"></i>
-            </div>
-            <h4 class="font-bold text-gray-900 mb-2">Кошик порожній</h4>
-            <p class="text-gray-600 mb-4">Додайте товари для оформлення замовлення</p>
-            <a href="{{ route('catalog') }}" 
-               class="inline-flex items-center px-6 py-3 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-bold hover:from-emerald-600 hover:to-teal-600 transition-all">
-                <i class="fas fa-shopping-bag mr-2"></i>
-                Почати покупки
+        <div v-else class="checkout-cart__empty">
+            <AppIcon name="shopping-cart" :size="36" icon-class="text-gray-300" />
+            <h4>Кошик порожній</h4>
+            <p>Додайте товари для оформлення замовлення</p>
+            <a href="/catalog" class="btn-domiko-primary inline-flex items-center gap-2 px-5 py-2.5 text-sm">
+                <AppIcon name="shopping-bag" :size="16" />
+                До каталогу
             </a>
         </div>
 
-        <div v-if="cart.length > 0" class="mt-4">
-            <div v-if="isBelowMinimum" class="p-4 rounded-xl border border-red-200 bg-red-50 text-sm text-red-700">
-                Мінімальна сума замовлення — 1000 ₴. Додайте товарів ще на {{ formatPrice(amountToReachMinimum) }} ₴.
+        <div v-if="cart.length > 0" class="checkout-cart__total">
+            <div class="checkout-cart__total-row">
+                <span>Товарів</span>
+                <span>{{ totalItems }} шт</span>
             </div>
-            <div v-else class="p-4 rounded-xl border border-emerald-200 bg-emerald-50 text-sm text-emerald-700">
-                Мінімальна сума замовлення — 1000 ₴. Ви можете перейти до оформлення.
+            <div class="checkout-cart__total-row checkout-cart__total-row--sum">
+                <span>Разом</span>
+                <span>{{ formatPrice(totalPrice) }} ₴</span>
             </div>
+            <p v-if="isBelowMinimum" class="checkout-cart__notice checkout-cart__notice--warn">
+                Мінімальна сума — 1000 ₴. Додайте ще на {{ formatPrice(amountToReachMinimum) }} ₴.
+            </p>
+            <p v-else class="checkout-cart__notice checkout-cart__notice--ok">
+                Мінімальну суму досягнуто — можна оформлювати.
+            </p>
         </div>
 
-        <!-- Hidden field for total price -->
         <input type="hidden" id="total_price_stream" :value="totalPrice">
     </div>
 </template>
 
 <script>
+import AppIcon from './AppIcon.vue';
+
 const MIN_ORDER_TOTAL = 1000;
 
 export default {
-    name: "CartList",
+    name: 'CartList',
+    components: { AppIcon },
     data() {
-        return {
-            cart: []
-        };
+        return { cart: [] };
     },
     computed: {
         totalPrice() {
-            const total = this.cart.reduce((sum, item) => {
-                const price = this.getItemPrice(item);
-                return sum + (price * item.quantity);
-            }, 0);
+            const total = this.cart.reduce((sum, item) => sum + this.getItemPrice(item) * item.quantity, 0);
             return Number(total.toFixed(2));
+        },
+        totalItems() {
+            return this.cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
         },
         isBelowMinimum() {
             return this.totalPrice < MIN_ORDER_TOTAL;
@@ -99,7 +89,7 @@ export default {
         amountToReachMinimum() {
             const difference = MIN_ORDER_TOTAL - this.totalPrice;
             return difference > 0 ? Math.ceil(difference) : 0;
-        }
+        },
     },
     mounted() {
         this.loadCart();
@@ -111,10 +101,8 @@ export default {
     methods: {
         loadCart() {
             try {
-                const saved = localStorage.getItem('cart');
-                this.cart = saved ? JSON.parse(saved) : [];
-            } catch (e) {
-                console.error('Error loading cart:', e);
+                this.cart = JSON.parse(localStorage.getItem('cart') || '[]');
+            } catch {
                 this.cart = [];
             }
         },
@@ -123,79 +111,176 @@ export default {
             window.dispatchEvent(new Event('cart-updated'));
         },
         increase(id) {
-            const item = this.cart.find(i => i.id == id);
+            const item = this.cart.find((entry) => entry.id == id);
             if (item) {
                 item.quantity++;
                 this.saveCart();
             }
         },
         decrease(id) {
-            const item = this.cart.find(i => i.id == id);
+            const item = this.cart.find((entry) => entry.id == id);
             if (item && item.quantity > 1) {
                 item.quantity--;
                 this.saveCart();
             }
         },
         remove(id) {
-            this.cart = this.cart.filter(i => i.id != id);
+            this.cart = this.cart.filter((entry) => entry.id != id);
             this.saveCart();
         },
         getItemPrice(item) {
-            // Проверяем оптовую цену
-            if (item.isWholesale && item.wholesalePrice && item.wholesaleMinQuantity) {
-                if (item.quantity >= item.wholesaleMinQuantity) {
-                    return parseFloat(item.wholesalePrice);
-                }
+            if (item.isWholesale && item.wholesalePrice && item.wholesaleMinQuantity && item.quantity >= item.wholesaleMinQuantity) {
+                return parseFloat(item.wholesalePrice);
             }
-            
-            // Обычная цена
+
             let price = item.price;
             if (typeof price === 'string') {
                 price = parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.'));
             }
-            if (isNaN(price) || typeof price !== 'number') {
-                price = 0;
-            }
-            return price;
+
+            return isNaN(price) ? 0 : price;
         },
         isWholesaleActive(item) {
-            return item.isWholesale && 
-                   item.wholesalePrice && 
-                   item.wholesaleMinQuantity && 
-                   item.quantity >= item.wholesaleMinQuantity;
+            return item.isWholesale && item.wholesalePrice && item.wholesaleMinQuantity && item.quantity >= item.wholesaleMinQuantity;
         },
         formatPrice(price) {
             return Math.round(price).toLocaleString('uk-UA');
-        }
-    }
+        },
+    },
 };
 </script>
 
 <style scoped>
-.line-clamp-2 {
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    line-clamp: 2;
-    overflow: hidden;
+.checkout-cart__list {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    max-height: 24rem;
+    overflow-y: auto;
+    padding-right: 0.25rem;
 }
 
-/* Custom scrollbar */
-.overflow-y-auto::-webkit-scrollbar {
-    width: 6px;
+.checkout-cart__item {
+    display: grid;
+    grid-template-columns: 64px 1fr;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #eee;
+    background: #fff;
 }
 
-.overflow-y-auto::-webkit-scrollbar-track {
-    background: #f3f4f6;
-    border-radius: 3px;
+.checkout-cart__thumb {
+    width: 64px;
+    height: 64px;
+    border: 1px solid #eee;
+    background: #fafafa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb {
-    background: #d1d5db;
-    border-radius: 3px;
+.checkout-cart__thumb img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
 }
 
-.overflow-y-auto::-webkit-scrollbar-thumb:hover {
-    background: #9ca3af;
+.checkout-cart__name {
+    margin: 0 0 0.2rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: #1E1E1E;
+    line-height: 1.35;
 }
+
+.checkout-cart__articule {
+    margin: 0 0 0.35rem;
+    font-size: 0.6875rem;
+    color: #888;
+}
+
+.checkout-cart__price {
+    font-weight: 700;
+    font-size: 0.875rem;
+    font-family: Montserrat, sans-serif;
+}
+
+.checkout-cart__opt {
+    margin-left: 0.4rem;
+    font-size: 0.625rem;
+    background: #D4AF5A;
+    color: #1E1E1E;
+    padding: 0.1rem 0.35rem;
+}
+
+.checkout-cart__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.checkout-cart__qty { max-width: 140px; }
+
+.checkout-cart__remove {
+    background: none;
+    border: 1px solid #ddd;
+    padding: 0.3rem 0.4rem;
+    color: #666;
+    cursor: pointer;
+}
+
+.checkout-cart__remove:hover { border-color: #1E1E1E; color: #1E1E1E; }
+
+.checkout-cart__empty {
+    text-align: center;
+    padding: 2rem 1rem;
+    border: 1px solid #eee;
+    background: #F5F6FB;
+}
+
+.checkout-cart__empty h4 {
+    font-family: Montserrat, sans-serif;
+    font-size: 1rem;
+    margin: 0.75rem 0 0.35rem;
+    color: #0B1F3B;
+}
+
+.checkout-cart__empty p {
+    color: #666;
+    font-size: 0.8125rem;
+    margin: 0 0 1rem;
+}
+
+.checkout-cart__total {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.checkout-cart__total-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.8125rem;
+    color: #666;
+    margin-bottom: 0.4rem;
+}
+
+.checkout-cart__total-row--sum {
+    font-size: 1.125rem;
+    font-weight: 700;
+    color: #1E1E1E;
+    font-family: Montserrat, sans-serif;
+    margin: 0.75rem 0 1rem;
+}
+
+.checkout-cart__notice {
+    font-size: 0.75rem;
+    padding: 0.75rem;
+    border: 1px solid #eee;
+    margin: 0;
+}
+
+.checkout-cart__notice--warn { background: #fff8f0; border-color: #D4AF5A; color: #666; }
+.checkout-cart__notice--ok { background: #F5F0E6; color: #1E1E1E; }
 </style>

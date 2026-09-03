@@ -74,7 +74,7 @@ class ProductResource extends Resource
      */
     public static function getGloballySearchableAttributes(): array
     {
-        return ['name', 'articule', 'brand'];
+        return ['name', 'name_ru', 'articule', 'external_id', 'brand'];
     }
 
     public static function getGlobalSearchResultDetails(Model $record): array

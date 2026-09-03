@@ -28,26 +28,41 @@ class ProductInfolist
                             ->checkFileExistence(false)
                             ->height(180),
 
-                        Grid::make(1)
+                        Grid::make(2)
                             ->columnSpan(2)
                             ->schema([
                                 TextEntry::make('name')
                                     ->label('Название')
                                     ->weight('bold')
-                                    ->size('lg'),
+                                    ->size('lg')
+                                    ->columnSpanFull(),
 
                                 TextEntry::make('url')
                                     ->label('URL')
                                     ->url(fn (Product $record): ?string => self::storefrontUrl($record))
                                     ->openUrlInNewTab()
-                                    ->copyable(),
+                                    ->copyable()
+                                    ->columnSpanFull(),
 
                                 TextEntry::make('articule')
                                     ->label('Артикул')
                                     ->placeholder('—'),
 
+                                TextEntry::make('external_id')
+                                    ->label('Внешний ID')
+                                    ->placeholder('—'),
+
                                 TextEntry::make('brand')
                                     ->label('Бренд')
+                                    ->placeholder('—'),
+
+                                TextEntry::make('country')
+                                    ->label('Страна')
+                                    ->placeholder('—'),
+
+                                TextEntry::make('weight')
+                                    ->label('Вес')
+                                    ->suffix(' кг')
                                     ->placeholder('—'),
                             ]),
                     ]),
@@ -62,7 +77,8 @@ class ProductInfolist
 
                         TextEntry::make('discount')
                             ->label('Скидка')
-                            ->formatStateUsing(fn (?int $state): string => $state > 0 ? "{$state}%" : '—'),
+                            ->formatStateUsing(fn (?int $state): string => $state > 0 ? "{$state}%" : '—')
+                            ->helperText(fn (Product $record): ?string => self::discountPeriod($record)),
 
                         TextEntry::make('availability')
                             ->label('Наличие')
@@ -109,15 +125,26 @@ class ProductInfolist
                         TextEntry::make('complectation')
                             ->label('Комплектация')
                             ->placeholder('—'),
+
+                        TextEntry::make('admin_notes')
+                            ->label('Заметки (только в админке)')
+                            ->placeholder('—'),
                     ]),
 
                 Section::make('Характеристики')
                     ->collapsible()
                     ->schema([
+                        // Значение показываем так же, как его увидит покупатель:
+                        // с единицей измерения и перечисленными вариантами.
                         KeyValueEntry::make('characteristics')
                             ->hiddenLabel()
                             ->keyLabel('Название')
                             ->valueLabel('Значение')
+                            ->state(fn (Product $record): array => collect($record->characteristicsForDisplay())
+                                ->mapWithKeys(fn (array $characteristic): array => [
+                                    $characteristic['name'] => $characteristic['value'],
+                                ])
+                                ->all())
                             ->placeholder('Характеристики не заданы'),
                     ]),
 
@@ -165,6 +192,25 @@ class ProductInfolist
                         TextEntry::make('seo_keywords')->label('SEO ключевые слова')->placeholder('—'),
                     ]),
             ]);
+    }
+
+    /**
+     * Срок действия скидки из выгрузки — справочная информация.
+     */
+    private static function discountPeriod(Product $record): ?string
+    {
+        if ($record->discount_starts_at === null && $record->discount_ends_at === null) {
+            return null;
+        }
+
+        $from = $record->discount_starts_at?->format('d.m.Y');
+        $to = $record->discount_ends_at?->format('d.m.Y');
+
+        return match (true) {
+            $from !== null && $to !== null => "с {$from} по {$to}",
+            $from !== null => "с {$from}",
+            default => "до {$to}",
+        };
     }
 
     /**

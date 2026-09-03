@@ -61,7 +61,11 @@ return [
             'engine' => null,
             'options' => extension_loaded('pdo_mysql') ? array_filter([
                 (PHP_VERSION_ID >= 80500 ? Mysql::ATTR_SSL_CA : PDO::MYSQL_ATTR_SSL_CA) => env('MYSQL_ATTR_SSL_CA'),
-            ]) : [],
+                // Сервер БД стоит за прокси, который ломает серверные prepared
+                // statements: часть запросов падает с SQLSTATE[HY093] Invalid
+                // parameter number (например, обновление таблицы sessions).
+                PDO::ATTR_EMULATE_PREPARES => env('DB_EMULATE_PREPARES', true),
+            ], fn ($option) => $option !== null) : [],
         ],
 
         'mariadb' => [

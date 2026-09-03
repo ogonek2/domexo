@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Cache;
 
 class Category extends Model
 {
@@ -79,6 +80,9 @@ class Category extends Model
                 $category->url = self::generateHref($category->name);
             }
         });
+
+        static::saved(fn () => Cache::forget('site.mega_menu'));
+        static::deleted(fn () => Cache::forget('site.mega_menu'));
     }
 
     // Метод для генерации href

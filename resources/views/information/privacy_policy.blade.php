@@ -143,9 +143,9 @@
                                 </h2>
                                 <p class="mb-3">Якщо у вас виникли питання щодо Політики конфіденційності, звертайтесь:</p>
                                 <ul class="space-y-1.5 ml-2">
-                                    <li><strong>Email:</strong> zmartcomua@gmail.com</li>
-                                    <li><strong>Телефон:</strong> +380730777572</li>
-                                    <li><strong>Адреса:</strong> Одеса, пром ринок «7 км», вул. Фабрична, маг. №2523</li>
+                                    <li><strong>Email:</strong> shershah169@gmail.com</li>
+                                    <li><strong>Телефон:</strong> +380 93 187 48 89</li>
+                                    <li><strong>Адреса:</strong> Одеса, Україна</li>
                                 </ul>
                             </section>
 

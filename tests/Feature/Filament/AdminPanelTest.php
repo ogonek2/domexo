@@ -214,7 +214,7 @@ class AdminPanelTest extends TestCase
                 'discount' => 5,
                 'availability' => 'in_stock',
                 'condition_item' => 'new',
-                'characteristics' => ['Цвет' => 'Черный'],
+                'characteristics' => [['name' => 'Цвет', 'value' => 'Черный', 'unit' => null]],
                 'categories' => [$this->category->id],
                 'catalogs' => [$this->catalog->id],
             ])
@@ -224,7 +224,10 @@ class AdminPanelTest extends TestCase
         $created = Product::query()->where('articule', 'ART-NEW')->firstOrFail();
 
         $this->assertSame('Новый товар', $created->name);
-        $this->assertSame(['Цвет' => 'Черный'], $created->characteristics);
+        $this->assertSame(
+            [['name' => 'Цвет', 'value' => 'Черный', 'unit' => null]],
+            $created->characteristicsList(),
+        );
         $this->assertNotEmpty($created->url);
         $this->assertEqualsCanonicalizing(
             [$this->category->id],
@@ -277,6 +280,74 @@ class AdminPanelTest extends TestCase
             ->callTableBulkAction('setDiscount', [$this->product], ['discount' => 25]);
 
         $this->assertSame(25, $this->product->refresh()->discount);
+    }
+
+    public function test_product_form_saves_characteristics_with_units_and_multiple_values(): void
+    {
+        Livewire::test(EditProduct::class, ['record' => $this->product->getKey()])
+            ->fillForm([
+                'characteristics' => [
+                    ['name' => 'Вага', 'value' => '2', 'unit' => 'г'],
+                    ['name' => 'Тип заряду', 'value' => 'Від мережі|USB', 'unit' => null],
+                    ['name' => '', 'value' => '', 'unit' => null],
+                ],
+            ])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(
+            [
+                ['name' => 'Вага', 'value' => '2', 'unit' => 'г'],
+                ['name' => 'Тип заряду', 'value' => 'Від мережі|USB', 'unit' => null],
+            ],
+            $this->product->refresh()->characteristicsList(),
+            'Пустые строки репитера не должны сохраняться.',
+        );
+    }
+
+    public function test_legacy_characteristics_are_shown_in_the_form_as_rows(): void
+    {
+        // В базе остались товары со старым плоским форматом.
+        Product::withoutEvents(fn () => Product::query()
+            ->whereKey($this->product->getKey())
+            ->update(['characteristics' => json_encode(['Матеріал' => 'Пластик'])]));
+
+        Livewire::test(EditProduct::class, ['record' => $this->product->getKey()])
+            ->assertSuccessful()
+            ->assertFormSet([
+                'characteristics' => [
+                    ['name' => 'Матеріал', 'value' => 'Пластик', 'unit' => null],
+                ],
+            ]);
+    }
+
+    public function test_export_action_downloads_a_file(): void
+    {
+        Livewire::test(ListProducts::class)
+            ->callAction('exportProducts', [
+                'format' => 'csv',
+                'only_filtered' => true,
+                'fields' => ['name', 'price', 'characteristics'],
+            ])
+            ->assertFileDownloaded();
+    }
+
+    public function test_template_action_downloads_a_file(): void
+    {
+        Livewire::test(ListProducts::class)
+            ->callAction('downloadProductTemplate', [
+                'format' => 'xlsx',
+                'fields' => ['name', 'price'],
+            ])
+            ->assertFileDownloaded();
+    }
+
+    public function test_import_and_export_actions_are_available_on_the_list_page(): void
+    {
+        Livewire::test(ListProducts::class)
+            ->assertActionVisible('importProducts')
+            ->assertActionVisible('exportProducts')
+            ->assertActionVisible('downloadProductTemplate');
     }
 
     public function test_template_characteristics_are_normalized_for_the_form(): void

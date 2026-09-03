@@ -241,12 +241,25 @@ class SpaPageService
             ? $product->price * (1 - $product->discount / 100)
             : $product->price;
         $inStock = !in_array($product->availability, [2, '2', 'out_of_stock', 0], true);
+        $conditionLabel = match ($product->condition_item) {
+            'used' => 'Вживаний',
+            'refurbished' => 'Відновлений',
+            'new' => 'Новий',
+            default => null,
+        };
 
         return [
             'product' => [
                 'id' => $product->id,
                 'name' => $product->name,
                 'articule' => $product->articule,
+                'brand' => $product->brand,
+                'country' => $product->country,
+                'weight' => $product->weight,
+                'complectation' => $product->complectation,
+                'min_order_quantity' => $product->min_order_quantity,
+                'condition_item' => $product->condition_item,
+                'condition_label' => $conditionLabel,
                 'description' => $product->description,
                 'price' => $product->price,
                 'discount' => $product->discount,
@@ -338,18 +351,9 @@ class SpaPageService
 
     private function buildCharacteristics(Product $product, array $templateCharacteristics): array
     {
-        $validCharacteristics = [];
-
-        if (!empty($product->characteristics) && is_array($product->characteristics)) {
-            foreach ($product->characteristics as $charKey => $charValue) {
-                if (!is_null($charValue) && $charValue !== '' && $charValue !== 'Не вказано' && $charValue !== '-') {
-                    $validCharacteristics[] = [
-                        'name' => is_string($charKey) ? ucwords(str_replace(['_', '-'], ' ', $charKey)) : 'Параметр',
-                        'value' => is_array($charValue) ? implode(', ', $charValue) : $charValue,
-                    ];
-                }
-            }
-        }
+        // Модель приводит к одному виду и новый формат (название, значение и
+        // единица измерения), и старый плоский «название => значение».
+        $validCharacteristics = $product->characteristicsForDisplay();
 
         if (empty($validCharacteristics) && !empty($templateCharacteristics)) {
             foreach ($templateCharacteristics as $char) {

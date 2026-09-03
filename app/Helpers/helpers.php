@@ -180,94 +180,111 @@ if (!function_exists('build_category_breadcrumbs')) {
     }
 }
 
+if (!function_exists('forget_mega_menu_cache')) {
+    function forget_mega_menu_cache(): void
+    {
+        Cache::forget('site.mega_menu');
+    }
+}
+
 if (!function_exists('get_mega_menu_data')) {
     /**
      * Дані для мега-меню каталогу: кореневі → підкатегорії → під-підкатегорії + товари (A–Я).
+     *
+     * Порожній результат не кешуємо: інакше перший захід до появи категорій
+     * залишає меню порожнім на весь TTL.
      */
     function get_mega_menu_data(): array
     {
-        return Cache::remember('site.mega_menu', now()->addHour(), function () {
-            $availabilityExclude = [0, 2, '0', '2', 'out_of_stock', false];
+        $cached = Cache::get('site.mega_menu');
 
-            $roots = Category::query()
-                ->where('is_active', true)
-                ->whereNull('parent_id')
+        if (is_array($cached) && $cached !== []) {
+            return $cached;
+        }
+
+        $availabilityExclude = [0, 2, '0', '2', 'out_of_stock', false];
+
+        $roots = Category::query()
+            ->where('is_active', true)
+            ->whereNull('parent_id')
+            ->orderBy('name')
+            ->with(['childCategories' => function ($q) {
+                $q->where('is_active', true)
+                    ->orderBy('name')
+                    ->with(['childCategories' => function ($q2) {
+                        $q2->where('is_active', true)->orderBy('name');
+                    }]);
+            }])
+            ->get();
+
+        $loadProducts = function (int $categoryId, string $categoryUrl, int $limit = 5) use ($availabilityExclude) {
+            $products = Product::query()
+                ->whereHas('categories', fn ($q) => $q->where('categories.id', $categoryId))
+                ->whereNotIn('availability', $availabilityExclude)
+                ->select(['id', 'name', 'url', 'image_path', 'price', 'discount'])
                 ->orderBy('name')
-                ->with(['childCategories' => function ($q) {
-                    $q->where('is_active', true)
-                        ->orderBy('name')
-                        ->with(['childCategories' => function ($q2) {
-                            $q2->where('is_active', true)->orderBy('name');
-                        }]);
-                }])
+                ->limit($limit)
                 ->get();
 
-            $loadProducts = function (int $categoryId, string $categoryUrl, int $limit = 5) use ($availabilityExclude) {
-                $products = Product::query()
-                    ->whereHas('categories', fn ($q) => $q->where('categories.id', $categoryId))
-                    ->whereNotIn('availability', $availabilityExclude)
-                    ->select(['id', 'name', 'url', 'image_path', 'price', 'discount'])
-                    ->orderBy('name')
-                    ->limit($limit)
-                    ->get();
+            $products->each(fn ($p) => $p->category_url = $categoryUrl);
 
-                $products->each(fn ($p) => $p->category_url = $categoryUrl);
+            return $products;
+        };
 
-                return $products;
-            };
+        $items = [];
 
-            $items = [];
+        foreach ($roots as $root) {
+            $children = $root->childCategories->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
+            $childBlocks = [];
+            $rootProducts = collect();
 
-            foreach ($roots as $root) {
-                $children = $root->childCategories->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
-                $childBlocks = [];
-                $rootProducts = collect();
+            if ($children->isNotEmpty()) {
+                foreach ($children as $child) {
+                    $grandchildren = $child->childCategories
+                        ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
+                        ->values();
 
-                if ($children->isNotEmpty()) {
-                    foreach ($children as $child) {
-                        $grandchildren = $child->childCategories
-                            ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
-                            ->values();
+                    $subBlocks = [];
 
-                        $subBlocks = [];
-
-                        if ($grandchildren->isNotEmpty()) {
-                            foreach ($grandchildren as $grand) {
-                                $products = $loadProducts($grand->id, $grand->url, 5);
-                                $subBlocks[] = [
-                                    'category' => $grand,
-                                    'count' => get_category_total_products($grand),
-                                    'products' => $products,
-                                ];
-                            }
+                    if ($grandchildren->isNotEmpty()) {
+                        foreach ($grandchildren as $grand) {
+                            $products = $loadProducts($grand->id, $grand->url, 5);
+                            $subBlocks[] = [
+                                'category' => $grand,
+                                'count' => get_category_total_products($grand),
+                                'products' => $products,
+                            ];
                         }
-
-                        $childProducts = $grandchildren->isEmpty()
-                            ? $loadProducts($child->id, $child->url, 6)
-                            : collect();
-
-                        $childBlocks[] = [
-                            'category' => $child,
-                            'count' => get_category_total_products($child),
-                            'products' => $childProducts,
-                            'children' => $subBlocks,
-                        ];
                     }
-                } else {
-                    $rootProducts = $loadProducts($root->id, $root->url, 12);
-                }
 
-                $items[] = [
-                    'category' => $root,
-                    'count' => get_category_total_products($root),
-                    'children' => $childBlocks,
-                    'products' => $rootProducts,
-                ];
+                    $childProducts = $grandchildren->isEmpty()
+                        ? $loadProducts($child->id, $child->url, 6)
+                        : collect();
+
+                    $childBlocks[] = [
+                        'category' => $child,
+                        'count' => get_category_total_products($child),
+                        'products' => $childProducts,
+                        'children' => $subBlocks,
+                    ];
+                }
+            } else {
+                $rootProducts = $loadProducts($root->id, $root->url, 12);
             }
 
-            // Alphabetical roots already ordered by name
-            return $items;
-        });
+            $items[] = [
+                'category' => $root,
+                'count' => get_category_total_products($root),
+                'children' => $childBlocks,
+                'products' => $rootProducts,
+            ];
+        }
+
+        if ($items !== []) {
+            Cache::put('site.mega_menu', $items, now()->addHour());
+        }
+
+        return $items;
     }
 }
 

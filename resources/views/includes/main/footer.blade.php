@@ -16,17 +16,6 @@
                 <p class="text-white/60 mb-6 leading-relaxed text-sm">
                     Якісні товари для дому, кухні та ванної оптом і в роздріб. Надійний партнер з широким асортиментом та вигідними умовами.
                 </p>
-                <div class="flex gap-3">
-                    <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#D4AF5A] hover:text-[#0B1F3B] flex items-center justify-center transition-all duration-200">
-                        <iconify-icon icon="mdi:facebook" width="20"></iconify-icon>
-                    </a>
-                    <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#D4AF5A] hover:text-[#0B1F3B] flex items-center justify-center transition-all duration-200">
-                        <iconify-icon icon="mdi:instagram" width="20"></iconify-icon>
-                    </a>
-                    <a href="#" class="w-10 h-10 bg-white/10 hover:bg-[#D4AF5A] hover:text-[#0B1F3B] flex items-center justify-center transition-all duration-200">
-                        <iconify-icon icon="mdi:telegram" width="20"></iconify-icon>
-                    </a>
-                </div>
             </div>
 
             <!-- Information -->

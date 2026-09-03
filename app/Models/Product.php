@@ -5,29 +5,45 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\ProductFeedService;
+use Illuminate\Support\Facades\Cache;
 
 class Product extends Model
 {
     use HasFactory;
 
+    /** Разделитель нескольких значений одной характеристики (формат Prom.ua). */
+    public const CHARACTERISTIC_VALUE_SEPARATOR = '|';
+
+    /** Значения-заглушки, которые не нужно показывать на витрине. */
+    public const CHARACTERISTIC_PLACEHOLDERS = ['', '-', '—', 'Не вказано', 'не вказано', 'Не указано'];
+
     protected $fillable = [
         'name',
+        'name_ru',
         'articule',
+        'external_id',
         'description',
+        'description_ru',
         'url',
         'discount',
+        'discount_starts_at',
+        'discount_ends_at',
         'price',
         'is_wholesale',
         'wholesale_price',
         'wholesale_min_quantity',
         'units_per_box',
+        'min_order_quantity',
         'unit_name',
         'unit_name_plural',
         'image_path',
         'complectation',
         'brand',
+        'country',
+        'weight',
         'condition_item',
         'availability',
+        'admin_notes',
         'seo_title',
         'seo_keywords',
         'seo_description',
@@ -44,6 +60,10 @@ class Product extends Model
         'wholesale_price' => 'decimal:2',
         'wholesale_min_quantity' => 'integer',
         'units_per_box' => 'integer',
+        'min_order_quantity' => 'integer',
+        'weight' => 'decimal:3',
+        'discount_starts_at' => 'date',
+        'discount_ends_at' => 'date',
     ];
 
     public function categories()
@@ -110,6 +130,100 @@ class Product extends Model
     {
         $template = $this->getActiveTemplate();
         return $template?->additional_fields ?? [];
+    }
+
+    /**
+     * Характеристики товара в едином виде. Понимает и новый формат (список
+     * строк с названием, значением и единицей измерения), и старый плоский
+     * «название => значение», который остался в части товаров.
+     *
+     * @return array<int, array{name: string, value: string, unit: string|null}>
+     */
+    public static function normalizeCharacteristics(mixed $characteristics): array
+    {
+        if (is_string($characteristics)) {
+            $characteristics = json_decode($characteristics, true);
+        }
+
+        if (! is_array($characteristics)) {
+            return [];
+        }
+
+        $normalized = [];
+
+        foreach ($characteristics as $key => $item) {
+            if (is_array($item)) {
+                $name = (string) ($item['name'] ?? $item['key'] ?? (is_string($key) ? $key : ''));
+                $value = $item['value'] ?? $item['values'] ?? null;
+                $unit = (string) ($item['unit'] ?? '');
+            } else {
+                $name = is_string($key) ? ucwords(str_replace(['_', '-'], ' ', $key)) : '';
+                $value = $item;
+                $unit = '';
+            }
+
+            if (is_array($value)) {
+                $value = implode(self::CHARACTERISTIC_VALUE_SEPARATOR, array_map('strval', $value));
+            }
+
+            $name = trim($name);
+            $value = trim((string) $value);
+
+            if ($name === '' || in_array($value, self::CHARACTERISTIC_PLACEHOLDERS, true)) {
+                continue;
+            }
+
+            $normalized[] = [
+                'name' => $name,
+                'value' => $value,
+                'unit' => trim($unit) === '' ? null : trim($unit),
+            ];
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * Любая запись характеристик приводится к новому формату: и форма админки,
+     * и импорт, и сидеры сохраняют данные одинаково.
+     */
+    public function setCharacteristicsAttribute(mixed $value): void
+    {
+        $this->attributes['characteristics'] = json_encode(
+            self::normalizeCharacteristics($value),
+            JSON_UNESCAPED_UNICODE,
+        );
+    }
+
+    /**
+     * @return array<int, array{name: string, value: string, unit: string|null}>
+     */
+    public function characteristicsList(): array
+    {
+        return self::normalizeCharacteristics($this->characteristics);
+    }
+
+    /**
+     * Характеристики для витрины: единица измерения приклеена к значению,
+     * многозначные варианты перечислены через запятую.
+     *
+     * @return array<int, array{name: string, value: string}>
+     */
+    public function characteristicsForDisplay(): array
+    {
+        return array_map(static function (array $characteristic): array {
+            $values = array_filter(array_map(
+                'trim',
+                explode(self::CHARACTERISTIC_VALUE_SEPARATOR, $characteristic['value']),
+            ), static fn (string $value): bool => $value !== '');
+
+            $value = implode(', ', $values);
+
+            return [
+                'name' => $characteristic['name'],
+                'value' => $characteristic['unit'] === null ? $value : "{$value} {$characteristic['unit']}",
+            ];
+        }, $this->characteristicsList());
     }
 
     // Получить путь к изображению (с поддержкой CDN)
@@ -191,10 +305,12 @@ class Product extends Model
         });
 
         static::saved(function ($product) {
+            Cache::forget('site.mega_menu');
             self::regenerateFeed();
         });
 
         static::deleted(function ($product) {
+            Cache::forget('site.mega_menu');
             self::regenerateFeed();
         });
     }

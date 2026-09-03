@@ -9,6 +9,7 @@ import {
     Minus, Plus, Trash2, Image, ShoppingBag, Eye, Package, Award, Handshake,
     Info as InfoIcon, ArrowRight, ArrowLeft, Home, Layers, CreditCard, CircleCheck,
     Boxes, DollarSign, Lightbulb, Box, MapPin, Mail, Clock, Send, SlidersHorizontal,
+    ShieldCheck, RotateCcw, Banknote, Weight, Globe, Factory,
 } from '@lucide/vue';
 
 const ICON_MAP = {
@@ -53,6 +54,12 @@ const ICON_MAP = {
     mail: Mail,
     clock: Clock,
     telegram: Send,
+    'shield-check': ShieldCheck,
+    'rotate-ccw': RotateCcw,
+    banknote: Banknote,
+    weight: Weight,
+    globe: Globe,
+    factory: Factory,
 };
 
 export default {

@@ -1469,6 +1469,7 @@ iconify-icon { display: inline-block; vertical-align: middle; color: currentColo
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    display: block;
 }
 
 .product-page__main { background: #fff; }
@@ -1565,7 +1566,6 @@ iconify-icon { display: inline-block; vertical-align: middle; color: currentColo
 }
 
 .product-page__thumbs {
-    display: flex;
     gap: 0.5rem;
     margin-top: 0.75rem;
     overflow-x: auto;
@@ -1616,10 +1616,74 @@ iconify-icon { display: inline-block; vertical-align: middle; color: currentColo
     color: var(--color-domiko-muted);
 }
 
+.product-page__brand {
+    font-weight: 600;
+    color: var(--color-domiko-navy);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    font-size: 0.75rem;
+}
+
 .product-page__stock {
     display: flex;
     align-items: center;
     gap: 0.375rem;
+}
+
+.product-page__facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin: 0 0 1.25rem;
+}
+
+@media (min-width: 480px) {
+    .product-page__facts { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+.product-page__fact {
+    margin: 0;
+    padding: 0.625rem 0.75rem;
+    border: 1px solid #eee;
+    background: var(--color-domiko-bg);
+}
+
+.product-page__fact dt {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    font-size: 0.6875rem;
+    color: var(--color-domiko-muted);
+    margin-bottom: 0.2rem;
+}
+
+.product-page__fact dd {
+    margin: 0;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    color: var(--color-domiko-text);
+}
+
+.product-page__complectation {
+    margin-top: 1.25rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.product-page__complectation-title {
+    font-family: var(--font-heading);
+    font-size: 0.9375rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem;
+    color: var(--color-domiko-text);
+}
+
+.product-page__complectation p {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.55;
+    color: #444;
+    white-space: pre-line;
 }
 
 .product-page__price-block {

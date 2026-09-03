@@ -7,16 +7,22 @@ use App\Filament\Support\ShopOptions;
 use App\Models\Catalog;
 use App\Models\Category;
 use App\Models\Product;
+use Filament\Actions\Action;
+use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\KeyValue;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Tabs;
 use Filament\Schemas\Components\Tabs\Tab;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 
 class ProductForm
 {
@@ -71,15 +77,20 @@ class ProductForm
                 ->label('Артикул')
                 ->maxLength(255),
 
+            TextInput::make('external_id')
+                ->label('Внешний ID')
+                ->maxLength(64)
+                ->helperText('Идентификатор из Prom.ua — по нему импорт находит этот товар.'),
+
             TextInput::make('brand')
                 ->label('Бренд')
                 ->maxLength(255)
-                ->datalist(fn () => Product::query()
-                    ->whereNotNull('brand')
-                    ->distinct()
-                    ->orderBy('brand')
-                    ->pluck('brand')
-                    ->all()),
+                ->datalist(fn () => self::distinctValues('brand')),
+
+            TextInput::make('country')
+                ->label('Страна производитель')
+                ->maxLength(100)
+                ->datalist(fn () => self::distinctValues('country')),
 
             Select::make('availability')
                 ->label('Наличие')
@@ -94,6 +105,13 @@ class ProductForm
                 ->options(ShopOptions::CONDITION)
                 ->default('new')
                 ->native(false),
+
+            TextInput::make('weight')
+                ->label('Вес')
+                ->numeric()
+                ->minValue(0)
+                ->step(0.001)
+                ->suffix('кг'),
 
             TextInput::make('url')
                 ->label('URL (ЧПУ)')
@@ -110,7 +128,40 @@ class ProductForm
                 ->label('Комплектация')
                 ->rows(3)
                 ->columnSpanFull(),
+
+            Textarea::make('admin_notes')
+                ->label('Заметки')
+                ->rows(2)
+                ->columnSpanFull()
+                ->helperText('Видны только в админке, на витрину не попадают.'),
+
+            Section::make('Русская версия')
+                ->description('Приходит из выгрузки Prom.ua. Витрина её не показывает, но экспорт сохраняет.')
+                ->collapsed()
+                ->columnSpanFull()
+                ->schema([
+                    TextInput::make('name_ru')
+                        ->label('Название (рус.)')
+                        ->maxLength(255),
+
+                    RichEditor::make('description_ru')
+                        ->label('Описание (рус.)'),
+                ]),
         ];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    protected static function distinctValues(string $column): array
+    {
+        return Product::query()
+            ->whereNotNull($column)
+            ->where($column, '!=', '')
+            ->distinct()
+            ->orderBy($column)
+            ->pluck($column)
+            ->all();
     }
 
     /**
@@ -132,7 +183,22 @@ class ProductForm
                 ->minValue(0)
                 ->maxValue(100)
                 ->default(0)
-                ->suffix('%'),
+                ->suffix('%')
+                ->live(onBlur: true),
+
+            DatePicker::make('discount_starts_at')
+                ->label('Скидка действует с')
+                ->native(false)
+                ->displayFormat('d.m.Y')
+                ->visible(fn (Get $get): bool => (int) $get('discount') > 0),
+
+            DatePicker::make('discount_ends_at')
+                ->label('Скидка действует до')
+                ->native(false)
+                ->displayFormat('d.m.Y')
+                ->afterOrEqual('discount_starts_at')
+                ->visible(fn (Get $get): bool => (int) $get('discount') > 0)
+                ->helperText('Справочные даты: витрина считает скидку постоянной, пока её не убрать вручную.'),
 
             TextInput::make('unit_name')
                 ->label('Единица измерения')
@@ -142,6 +208,12 @@ class ProductForm
             TextInput::make('unit_name_plural')
                 ->label('Единица (мн. число)')
                 ->maxLength(50),
+
+            TextInput::make('min_order_quantity')
+                ->label('Минимальный заказ')
+                ->numeric()
+                ->minValue(1)
+                ->suffix(fn (Get $get): string => (string) ($get('unit_name') ?: 'шт')),
 
             Toggle::make('is_wholesale')
                 ->label('Оптовый товар')
@@ -189,13 +261,47 @@ class ProductForm
     protected static function characteristicsFields(): array
     {
         return [
-            KeyValue::make('characteristics')
+            Repeater::make('characteristics')
                 ->label('Характеристики')
-                ->keyLabel('Название')
-                ->valueLabel('Значение')
+                ->table([
+                    TableColumn::make('Название'),
+                    TableColumn::make('Значение'),
+                    TableColumn::make('Ед. измерения'),
+                ])
+                ->schema([
+                    // Обязательности нет намеренно: кнопка «Добавить из шаблона»
+                    // подставляет строки без значений, как список для заполнения.
+                    TextInput::make('name')
+                        ->placeholder('Колір')
+                        ->datalist(fn (?Product $record): array => self::templateCharacteristicNames($record)),
+
+                    TextInput::make('value')
+                        ->placeholder('Білий'),
+
+                    TextInput::make('unit')
+                        ->placeholder('г'),
+                ])
+                ->addActionLabel('Добавить характеристику')
                 ->reorderable()
                 ->columnSpanFull()
-                ->helperText(fn (?Product $record): string => self::templateHint($record)),
+                ->afterStateHydrated(fn (Repeater $component, mixed $state) => $component->state(
+                    Product::normalizeCharacteristics($state),
+                ))
+                ->helperText(fn (?Product $record): string => 'Несколько значений одной характеристики разделяйте знаком «|»: «Від мережі|USB». '
+                    .'Строки без названия или значения не сохраняются. '
+                    .self::templateHint($record))
+                ->hintAction(
+                    Action::make('fillFromTemplate')
+                        ->label('Добавить из шаблона')
+                        ->icon(Heroicon::OutlinedSparkles)
+                        ->visible(fn (?Product $record): bool => self::templateCharacteristicNames($record) !== [])
+                        ->action(function (Repeater $component, ?Product $record): void {
+                            $component->state(self::mergeTemplateCharacteristics(
+                                $component->getState(),
+                                self::templateCharacteristicNames($record),
+                            ));
+                        }),
+                ),
 
             KeyValue::make('modifications')
                 ->label('Модификации')
@@ -269,24 +375,64 @@ class ProductForm
     }
 
     /**
-     * Подсказка со списком характеристик из шаблона категории/каталога —
-     * их витрина показывает, если у товара нет своих.
+     * Названия характеристик из шаблона категории или каталога — витрина
+     * показывает их, если у товара нет своих.
+     *
+     * @return array<int, string>
      */
-    protected static function templateHint(?Product $record): string
+    protected static function templateCharacteristicNames(?Product $record): array
     {
         if (! $record) {
-            return 'Характеристики попадают в карточку товара как есть.';
+            return [];
         }
 
-        $names = collect($record->getTemplateCharacteristics())
+        return collect($record->getTemplateCharacteristics())
             ->map(fn ($characteristic) => is_array($characteristic)
                 ? ($characteristic['name'] ?? $characteristic['key'] ?? null)
                 : $characteristic)
             ->filter()
-            ->implode(', ');
+            ->map(fn ($name): string => (string) $name)
+            ->unique()
+            ->values()
+            ->all();
+    }
 
-        return $names === ''
+    protected static function templateHint(?Product $record): string
+    {
+        $names = self::templateCharacteristicNames($record);
+
+        return $names === []
             ? 'Характеристики попадают в карточку товара как есть.'
-            : "Шаблон предлагает: {$names}.";
+            : 'Шаблон предлагает: '.implode(', ', $names).'.';
+    }
+
+    /**
+     * Добавляет к уже заполненным характеристикам пустые строки для тех
+     * названий из шаблона, которых ещё нет.
+     *
+     * @param  array<mixed>  $state
+     * @param  array<int, string>  $templateNames
+     * @return array<int, array{name: string, value: string, unit: string|null}>
+     */
+    protected static function mergeTemplateCharacteristics(array $state, array $templateNames): array
+    {
+        $characteristics = collect($state)
+            ->map(fn ($row): array => [
+                'name' => trim((string) ($row['name'] ?? '')),
+                'value' => trim((string) ($row['value'] ?? '')),
+                'unit' => ($row['unit'] ?? null) === '' ? null : $row['unit'] ?? null,
+            ])
+            ->filter(fn (array $row): bool => $row['name'] !== '')
+            ->values();
+
+        $existing = $characteristics->map(fn (array $row): string => mb_strtolower($row['name']))->all();
+
+        foreach ($templateNames as $name) {
+            if (! in_array(mb_strtolower($name), $existing, true)) {
+                $characteristics->push(['name' => $name, 'value' => '', 'unit' => null]);
+            }
+        }
+
+        return $characteristics->all();
     }
 }

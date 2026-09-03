@@ -111,10 +111,10 @@
                                 <h3 class="font-heading text-xl font-bold text-white mb-3">Питання щодо гарантії?</h3>
                                 <p class="text-white/70 mb-6 text-sm">Наші менеджери допоможуть оформити гарантійне звернення</p>
                                 <div class="flex flex-col sm:flex-row gap-3 justify-center">
-                                    <a href="tel:+380730777572" class="btn-domiko-primary px-6 py-3 inline-flex items-center justify-center gap-2">
-                                        <i class="fas fa-phone"></i> +38 073-077-75-72
+                                    <a href="tel:0931874889" class="btn-domiko-primary px-6 py-3 inline-flex items-center justify-center gap-2">
+                                        <i class="fas fa-phone"></i> +380 93 187 48 89
                                     </a>
-                                    <a href="mailto:zmartcomua@gmail.com" class="border border-[#D4AF5A] text-[#D4AF5A] hover:bg-[#D4AF5A] hover:text-[#0B1F3B] px-6 py-3 inline-flex items-center justify-center gap-2 transition-colors font-heading font-semibold">
+                                    <a href="mailto:shershah169@gmail.com" class="border border-[#D4AF5A] text-[#D4AF5A] hover:bg-[#D4AF5A] hover:text-[#0B1F3B] px-6 py-3 inline-flex items-center justify-center gap-2 transition-colors font-heading font-semibold">
                                         <i class="fas fa-envelope"></i> Написати нам
                                     </a>
                                 </div>

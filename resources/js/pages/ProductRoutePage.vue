@@ -32,11 +32,22 @@
 
                         <div class="product-page__meta">
                             <span class="product-page__articule">Артикул: <strong>{{ product.articule || '—' }}</strong></span>
+                            <span v-if="product.brand" class="product-page__brand">{{ product.brand }}</span>
                             <span class="product-page__stock">
                                 <span class="pcard__stock-dot" :class="product.inStock ? 'pcard__stock-dot--yes' : 'pcard__stock-dot--no'"></span>
                                 {{ product.inStock ? 'В наявності' : 'Немає в наявності' }}
                             </span>
                         </div>
+
+                        <dl v-if="facts.length" class="product-page__facts">
+                            <div v-for="fact in facts" :key="fact.label" class="product-page__fact">
+                                <dt>
+                                    <AppIcon :name="fact.icon" :size="14" />
+                                    {{ fact.label }}
+                                </dt>
+                                <dd>{{ fact.value }}</dd>
+                            </div>
+                        </dl>
 
                         <div class="product-page__price-block">
                             <div class="product-page__price-row">
@@ -45,7 +56,7 @@
                                 <span class="product-page__unit">/ {{ product.unit_name }}</span>
                             </div>
                             <p v-if="product.discount > 0" class="product-page__old-price">{{ formatPrice(product.price) }} грн</p>
-                            <p class="product-page__min-order">Замовлення від 1 {{ product.unit_name }}</p>
+                            <p class="product-page__min-order">Замовлення від {{ minOrderQuantity }} {{ product.unit_name }}</p>
 
                             <div v-if="product.is_wholesale && product.wholesale_price && product.wholesale_min_quantity" class="product-page__wholesale">
                                 <div class="product-page__wholesale-label">
@@ -58,11 +69,6 @@
                                 </div>
                             </div>
                         </div>
-
-                        <p v-if="product.units_per_box" class="product-page__box-info">
-                            <AppIcon name="info" :size="16" />
-                            У ящику: {{ product.units_per_box }} {{ product.unit_name_plural }}
-                        </p>
 
                         <div class="product-page__buy-actions">
                             <ProductBuyBox :product-data="buyBoxProduct" />
@@ -102,6 +108,11 @@
                         <h2 class="product-page__section-title">Опис</h2>
                         <div v-if="product.description" class="product-page__description prose max-w-none" v-html="product.description"></div>
                         <p v-else class="text-[#64748b]">Опис товару відсутній.</p>
+
+                        <div v-if="product.complectation" class="product-page__complectation">
+                            <h3 class="product-page__complectation-title">Комплектація</h3>
+                            <p>{{ product.complectation }}</p>
+                        </div>
                     </div>
                 </div>
 
@@ -161,8 +172,37 @@ export default {
             }
         };
 
+        const product = computed(() => data.value.product || null);
+
+        const minOrderQuantity = computed(() => {
+            const value = Number(product.value?.min_order_quantity);
+            return value > 0 ? value : 1;
+        });
+
+        const facts = computed(() => {
+            const item = product.value;
+            if (!item) return [];
+
+            const rows = [];
+            if (item.brand) rows.push({ icon: 'award', label: 'Бренд', value: item.brand });
+            if (item.country) rows.push({ icon: 'globe', label: 'Країна', value: item.country });
+            if (item.weight) rows.push({ icon: 'weight', label: 'Вага', value: `${item.weight} кг` });
+            if (item.condition_label) rows.push({ icon: 'shield-check', label: 'Стан', value: item.condition_label });
+            if (item.units_per_box) {
+                rows.push({
+                    icon: 'box',
+                    label: 'В ящику',
+                    value: `${item.units_per_box} ${item.unit_name_plural || item.unit_name || 'шт'}`,
+                });
+            }
+
+            return rows;
+        });
+
         return {
-            product: computed(() => data.value.product || null),
+            product,
+            facts,
+            minOrderQuantity,
             images: computed(() => data.value.images || []),
             characteristics: computed(() => data.value.characteristics || []),
             recommendedProducts: computed(() => data.value.recommendedProducts || []),

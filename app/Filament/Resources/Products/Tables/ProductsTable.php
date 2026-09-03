@@ -83,16 +83,39 @@ class ProductsTable
                     ->color('info')
                     ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('brand')
-                    ->label('Бренд')
-                    ->searchable()
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    TextColumn::make('brand')
+                        ->label('Бренд')
+                        ->searchable()
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
 
-                TextColumn::make('articule')
-                    ->label('Артикул')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
+                    TextColumn::make('articule')
+                        ->label('Артикул')
+                        ->searchable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+
+                    TextColumn::make('external_id')
+                        ->label('Внешний ID')
+                        ->searchable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+
+                    TextColumn::make('country')
+                        ->label('Страна')
+                        ->searchable()
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+
+                    TextColumn::make('weight')
+                        ->label('Вес, кг')
+                        ->sortable()
+                        ->toggleable(isToggledHiddenByDefault: true),
+
+                    TextColumn::make('characteristics')
+                        ->label('Характеристик')
+                        ->badge()
+                        ->color('info')
+                        ->state(fn (Product $record): int => count($record->characteristicsList()))
+                        ->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('updated_at')
                     ->label('Обновлён')
@@ -137,12 +160,37 @@ class ProductsTable
                     ->toggle()
                     ->query(fn (Builder $query): Builder => $query->where('discount', '>', 0)),
 
-                Filter::make('without_image')
-                    ->label('Без фото')
-                    ->toggle()
-                    ->query(fn (Builder $query): Builder => $query->where(
-                        fn (Builder $query) => $query->whereNull('image_path')->orWhere('image_path', ''),
-                    )),
+                    SelectFilter::make('country')
+                        ->label('Страна')
+                        ->options(fn (): array => Product::query()
+                            ->whereNotNull('country')
+                            ->where('country', '!=', '')
+                            ->distinct()
+                            ->orderBy('country')
+                            ->pluck('country', 'country')
+                            ->all())
+                        ->searchable(),
+
+                    Filter::make('without_image')
+                        ->label('Без фото')
+                        ->toggle()
+                        ->query(fn (Builder $query): Builder => $query->where(
+                            fn (Builder $query) => $query->whereNull('image_path')->orWhere('image_path', ''),
+                        )),
+
+                    Filter::make('without_category')
+                        ->label('Без категории')
+                        ->toggle()
+                        ->query(fn (Builder $query): Builder => $query->whereDoesntHave('categories')),
+
+                    Filter::make('without_characteristics')
+                        ->label('Без характеристик')
+                        ->toggle()
+                        ->query(fn (Builder $query): Builder => $query->where(
+                            fn (Builder $query) => $query
+                                ->whereNull('characteristics')
+                                ->orWhereJsonLength('characteristics', 0),
+                        )),
             ])
             ->recordActions([
                 ViewAction::make(),

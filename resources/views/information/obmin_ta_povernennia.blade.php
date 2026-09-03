@@ -97,8 +97,8 @@
                                         <div class="flex-1">
                                             <h3 class="text-lg font-bold text-gray-900 mb-2">Зв'яжіться з нами</h3>
                                             <p class="text-gray-700">
-                                                Зверніться до нашого менеджера за телефоном <strong>+380730777572</strong> 
-                                                або напишіть на email <strong>zmartcomua@gmail.com</strong>
+                                                Зверніться до нашого менеджера за телефоном <strong>+380 93 187 48 89</strong> 
+                                                або напишіть на email <strong>shershah169@gmail.com</strong>
                                             </p>
                                         </div>
                                     </div>
@@ -202,9 +202,9 @@
                                     звертайтеся до наших менеджерів
                                 </p>
                                 <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                                    <a href="tel:+380730777572" class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl">
+                                    <a href="tel:0931874889" class="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl">
                                         <i class="fas fa-phone mr-2"></i>
-                                        +380730777572
+                                        +380 93 187 48 89
                                     </a>
                                     <a href="mailto:zmartcomua@gmail.com" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl">
                                         <i class="fas fa-envelope mr-2"></i>
