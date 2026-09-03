@@ -8,7 +8,6 @@ use App\Models\Product;
 use App\Models\productImage;
 use Carbon\Exceptions\InvalidFormatException;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use RuntimeException;
 
 /**
@@ -90,8 +89,6 @@ class ProductImporter
             $this->result->rows++;
             $this->importRow($row, $header['columns'], $header['characteristicSlots']);
         }
-
-        Cache::forget('site.mega_menu');
 
         return $this->result;
     }

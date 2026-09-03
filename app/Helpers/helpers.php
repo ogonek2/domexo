@@ -2,7 +2,6 @@
 
 use App\Models\Category;
 use App\Models\Product;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 
 function get_all_category() {
@@ -192,27 +191,18 @@ if (!function_exists('build_category_breadcrumbs')) {
 if (!function_exists('forget_mega_menu_cache')) {
     function forget_mega_menu_cache(): void
     {
-        Cache::forget('site.mega_menu');
+        // Мега-меню більше не кешується в БД — нічого скидати.
     }
 }
 
 if (!function_exists('get_mega_menu_data')) {
     /**
-     * Дані для мега-меню каталогу: кореневі → підкатегорії → під-підкатегорії + товари (A–Я).
-     *
-     * Порожній результат не кешуємо: інакше перший захід до появи категорій
-     * залишає меню порожнім на весь TTL.
+     * Просте дерево категорій для мега-меню.
+     * Без Cache у MySQL і без окремих запитів товарів на кожну категорію —
+     * на хостингу mysql.tools це ламає UPDATE sessions (HY000 2014).
      */
     function get_mega_menu_data(): array
     {
-        $cached = Cache::get('site.mega_menu');
-
-        if (is_array($cached) && $cached !== []) {
-            return $cached;
-        }
-
-        $availabilityExclude = [0, 2, '0', '2', 'out_of_stock', false];
-
         $roots = Category::query()
             ->where('is_active', true)
             ->whereNull('parent_id')
@@ -220,77 +210,46 @@ if (!function_exists('get_mega_menu_data')) {
             ->with(['childCategories' => function ($q) {
                 $q->where('is_active', true)
                     ->orderBy('name')
+                    ->withCount('products')
                     ->with(['childCategories' => function ($q2) {
-                        $q2->where('is_active', true)->orderBy('name');
+                        $q2->where('is_active', true)
+                            ->orderBy('name')
+                            ->withCount('products');
                     }]);
             }])
+            ->withCount('products')
             ->get();
-
-        $loadProducts = function (int $categoryId, string $categoryUrl, int $limit = 5) use ($availabilityExclude) {
-            $products = Product::query()
-                ->whereHas('categories', fn ($q) => $q->where('categories.id', $categoryId))
-                ->whereNotIn('availability', $availabilityExclude)
-                ->select(['id', 'name', 'url', 'image_path', 'price', 'discount'])
-                ->orderBy('name')
-                ->limit($limit)
-                ->get();
-
-            $products->each(fn ($p) => $p->category_url = $categoryUrl);
-
-            return $products;
-        };
 
         $items = [];
 
         foreach ($roots as $root) {
-            $children = $root->childCategories->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)->values();
             $childBlocks = [];
-            $rootProducts = collect();
 
-            if ($children->isNotEmpty()) {
-                foreach ($children as $child) {
-                    $grandchildren = $child->childCategories
-                        ->sortBy('name', SORT_NATURAL | SORT_FLAG_CASE)
-                        ->values();
+            foreach ($root->childCategories as $child) {
+                $subBlocks = [];
 
-                    $subBlocks = [];
-
-                    if ($grandchildren->isNotEmpty()) {
-                        foreach ($grandchildren as $grand) {
-                            $products = $loadProducts($grand->id, $grand->url, 5);
-                            $subBlocks[] = [
-                                'category' => $grand,
-                                'count' => get_category_total_products($grand),
-                                'products' => $products,
-                            ];
-                        }
-                    }
-
-                    $childProducts = $grandchildren->isEmpty()
-                        ? $loadProducts($child->id, $child->url, 6)
-                        : collect();
-
-                    $childBlocks[] = [
-                        'category' => $child,
-                        'count' => get_category_total_products($child),
-                        'products' => $childProducts,
-                        'children' => $subBlocks,
+                foreach ($child->childCategories as $grand) {
+                    $subBlocks[] = [
+                        'category' => $grand,
+                        'count' => (int) $grand->products_count,
+                        'products' => collect(),
                     ];
                 }
-            } else {
-                $rootProducts = $loadProducts($root->id, $root->url, 12);
+
+                $childBlocks[] = [
+                    'category' => $child,
+                    'count' => (int) $child->products_count,
+                    'products' => collect(),
+                    'children' => $subBlocks,
+                ];
             }
 
             $items[] = [
                 'category' => $root,
-                'count' => get_category_total_products($root),
+                'count' => (int) $root->products_count,
                 'children' => $childBlocks,
-                'products' => $rootProducts,
+                'products' => collect(),
             ];
-        }
-
-        if ($items !== []) {
-            Cache::put('site.mega_menu', $items, now()->addHour());
         }
 
         return $items;

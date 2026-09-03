@@ -5,7 +5,6 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use App\Services\ProductFeedService;
-use Illuminate\Support\Facades\Cache;
 
 class Product extends Model
 {
@@ -305,12 +304,10 @@ class Product extends Model
         });
 
         static::saved(function ($product) {
-            Cache::forget('site.mega_menu');
             self::regenerateFeed();
         });
 
         static::deleted(function ($product) {
-            Cache::forget('site.mega_menu');
             self::regenerateFeed();
         });
     }

@@ -23,7 +23,5 @@ class DatabaseSeeder extends Seeder
             ProductSeeder::class,
             OrdersSeeder::class,
         ]);
-
-        \Illuminate\Support\Facades\Cache::forget('site.mega_menu');
     }
 }

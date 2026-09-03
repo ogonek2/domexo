@@ -116,6 +116,12 @@
                                     <x-lucide-icon name="arrow-right" width="14" />
                                 </a>
                             @endif
+                        @elseif ($item['count'] > 0)
+                            <a href="{{ route('catalog_category_page', $item['category']->url) }}"
+                               class="mega-menu__more mega-menu__more--block">
+                                Переглянути всі {{ $item['count'] }} товарів
+                                <x-lucide-icon name="arrow-right" width="14" />
+                            </a>
                         @else
                             <p class="mega-menu__empty">Товари скоро з'являться</p>
                             <a href="{{ route('catalog_category_page', $item['category']->url) }}"

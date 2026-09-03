@@ -4,7 +4,6 @@ namespace App\Services\Products;
 
 use App\Models\ProductImport;
 use Illuminate\Bus\Batch;
-use Illuminate\Support\Facades\Cache;
 use Throwable;
 
 /**
@@ -45,7 +44,6 @@ class ProductImportFinalizer
             : null;
 
         $import->finish($status, $error);
-        Cache::forget('site.mega_menu');
     }
 
     private static function findImport(Batch $batch): ?ProductImport
