@@ -260,9 +260,13 @@ class ProductListingService
 
     public function attachPrimaryCategory($products): void
     {
-        $collection = $products instanceof \Illuminate\Support\Collection
+        $collection = $products instanceof \Illuminate\Database\Eloquent\Collection
             ? $products
-            : collect($products);
+            : new \Illuminate\Database\Eloquent\Collection(
+                $products instanceof \Illuminate\Support\Collection
+                    ? $products->all()
+                    : (is_array($products) ? $products : [$products])
+            );
 
         if ($collection->isEmpty()) {
             return;
