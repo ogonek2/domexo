@@ -84,7 +84,7 @@ class SpaPageService
                 'availability', 'is_wholesale', 'wholesale_price', 'wholesale_min_quantity',
                 'units_per_box', 'unit_name', 'unit_name_plural', 'created_at',
             ])
-            ->whereIn('availability', ['in_stock', '1']);
+            ->whereRaw(ProductListingService::IN_STOCK_SQL);
     }
 
     /**
@@ -270,7 +270,7 @@ class SpaPageService
             $recommendedProducts = Product::query()
                 ->whereHas('categories', fn ($query) => $query->whereIn('categories.id', $categoryIds))
                 ->where('id', '!=', $product->id)
-                ->whereIn('availability', ['in_stock', '1'])
+                ->whereRaw(ProductListingService::IN_STOCK_SQL)
                 ->select([
                     'id', 'name', 'price', 'discount', 'image_path', 'url',
                     'articule', 'availability', 'is_wholesale', 'wholesale_price', 'wholesale_min_quantity',

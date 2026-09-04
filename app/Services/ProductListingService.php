@@ -9,6 +9,12 @@ use Illuminate\Http\Request;
 
 class ProductListingService
 {
+    /** Legacy + canonical in-stock values (inline SQL — ProxySQL-safe, no bindings). */
+    public const IN_STOCK_SQL = "availability IN ('in_stock','1')";
+
+    /** Legacy + canonical out-of-stock values. */
+    public const OUT_OF_STOCK_SQL = "availability IN ('out_of_stock','2','0')";
+
     /**
      * Base query used everywhere (consistent columns + default "in_stock").
      */
@@ -32,7 +38,7 @@ class ProductListingService
                 'unit_name_plural',
             ])
             // Legacy data can contain 1/2 instead of in_stock/out_of_stock.
-            ->whereIn('availability', ['in_stock', '1']);
+            ->whereRaw(self::IN_STOCK_SQL);
     }
 
     /**
@@ -76,12 +82,12 @@ class ProductListingService
         }
 
         if ($availability === '1' || $availability === 'in' || $availability === 'in_stock') {
-            return $query->whereIn('availability', ['in_stock', '1']);
+            return $query->whereRaw(self::IN_STOCK_SQL);
         }
 
         // Legacy URL support (?availability=out).
         if ($availability === 'out') {
-            return $query->whereIn('availability', ['out_of_stock', '2', '0']);
+            return $query->whereRaw(self::OUT_OF_STOCK_SQL);
         }
 
         return $query;
@@ -139,8 +145,7 @@ class ProductListingService
     public function applySort(Builder $query, string $sort): Builder
     {
         $query->orderByRaw(
-            'CASE WHEN availability IN (?, ?) THEN 0 ELSE 1 END ASC',
-            ['in_stock', '1']
+            'CASE WHEN '.self::IN_STOCK_SQL.' THEN 0 ELSE 1 END ASC'
         );
 
         return match ($sort) {
