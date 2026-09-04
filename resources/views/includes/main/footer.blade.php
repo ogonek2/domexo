@@ -58,7 +58,7 @@
                 <ul class="space-y-2 text-sm mb-6">
                     <li class="flex justify-between">
                         <span class="text-white/50">Пн – Чт</span>
-                        <span class="text-white/80">05:00 – 14:00</span>
+                        <span class="text-white/80">08:00 – 18:00</span>
                     </li>
                     <li class="flex justify-between">
                         <span class="text-white/50">П'ятниця</span>
@@ -66,7 +66,7 @@
                     </li>
                     <li class="flex justify-between">
                         <span class="text-white/50">Сб – Нд</span>
-                        <span class="text-white/80">05:00 – 14:00</span>
+                        <span class="text-white/80">08:00 – 18:00</span>
                     </li>
                 </ul>
             </div>

@@ -5,6 +5,7 @@ use App\Http\Controllers\indexController;
 use App\Http\Controllers\CatalogController;
 use App\Http\Controllers\OrderController;
 use App\Http\Controllers\ContactController;
+use App\Http\Controllers\CsrfTokenController;
 use App\Http\Controllers\SpaApiController;
 use App\Http\Controllers\SpaShellController;
 
@@ -64,6 +65,11 @@ Route::get('/pro-kompaniiu', function() {
     return view('information.about');
 })->name('pro_kompaniiu');
 Route::post('/contact-request', [ContactController::class, 'submit'])->name('contact_request');
+Route::get('/csrf-token', CsrfTokenController::class)->name('csrf_token');
+
+Route::middleware('auth')->group(function () {
+    Route::get('/admin/orders/{order}/print', [OrderController::class, 'print'])->name('admin.orders.print');
+});
 
 Route::get('/api/products', function () {
     return \App\Models\Product::select('id', 'name', 'articule', 'price', 'discount', 'image_path', 'availability', 'url')

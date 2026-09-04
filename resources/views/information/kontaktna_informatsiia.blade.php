@@ -73,7 +73,7 @@
                                 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 text-center text-sm">
                                     <div>
                                         <h4 class="font-bold text-[#0B1F3B] mb-1">Пн — Чт</h4>
-                                        <p class="text-gray-600">05:00 — 14:00</p>
+                                        <p class="text-gray-600">08:00 — 18:00</p>
                                     </div>
                                     <div>
                                         <h4 class="font-bold text-[#0B1F3B] mb-1">П'ятниця</h4>
@@ -81,7 +81,7 @@
                                     </div>
                                     <div>
                                         <h4 class="font-bold text-[#0B1F3B] mb-1">Сб — Нд</h4>
-                                        <p class="text-gray-600">05:00 — 14:00</p>
+                                        <p class="text-gray-600">08:00 — 18:00</p>
                                     </div>
                                 </div>
                             </div>

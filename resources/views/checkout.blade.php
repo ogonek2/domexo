@@ -164,7 +164,11 @@
                                 </div>
                                 <div>
                                     <label for="phone" class="block text-sm font-semibold text-[#0B1F3B] mb-2">Телефон <span class="text-red-500">*</span></label>
-                                    <input type="tel" id="phone" name="phone" class="checkout-field" placeholder="+380XXXXXXXXX">
+                                    <input type="tel" id="phone" name="phone" class="checkout-field" placeholder="+380XXXXXXXXX" required>
+                                </div>
+                                <div>
+                                    <label for="email" class="block text-sm font-semibold text-[#0B1F3B] mb-2">Email <span class="text-red-500">*</span></label>
+                                    <input type="email" id="email" name="email" class="checkout-field" placeholder="name@example.com" required>
                                 </div>
                                 <div class="md:col-span-2">
                                     <label for="comment" class="block text-sm font-semibold text-[#0B1F3B] mb-2">Коментар до замовлення</label>
@@ -491,6 +495,13 @@
                     isValid = false;
                 }
 
+                const email = ($('#email').val() || '').trim();
+                const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+                if (!email || !emailOk) {
+                    showFieldError('#email', 'Введіть коректний email');
+                    isValid = false;
+                }
+
                 if (!$('input[name="payment_method"]:checked').val()) {
                     showError('Оберіть спосіб оплати');
                     isValid = false;
@@ -508,7 +519,22 @@
                 alert(message);
             }
 
-            $('#order-form').on('submit', function(e) {
+            async function refreshCsrfToken() {
+                try {
+                    const res = await fetch('/csrf-token', {
+                        headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                        credentials: 'same-origin',
+                    });
+                    const data = await res.json();
+                    if (data.token) {
+                        $('meta[name="csrf-token"]').attr('content', data.token);
+                        return data.token;
+                    }
+                } catch (e) {}
+                return $('meta[name="csrf-token"]').attr('content');
+            }
+
+            $('#order-form').on('submit', async function(e) {
                 e.preventDefault();
                 if (!validateForm()) return;
 
@@ -520,9 +546,17 @@
 
                 $('#preloader').removeClass('hidden').addClass('flex');
 
+                const token = await refreshCsrfToken();
+
                 $.ajax({
                     type: 'POST',
                     url: '/order-submit',
+                    dataType: 'json',
+                    headers: {
+                        'X-CSRF-TOKEN': token,
+                        'X-Requested-With': 'XMLHttpRequest',
+                        'Accept': 'application/json',
+                    },
                     data: {
                         delivery_service: $('input[name="delivery_service"]:checked').val(),
                         city: $('#city-select option:selected').text(),
@@ -532,16 +566,18 @@
                         lastname: $('#lastname').val().trim(),
                         fathername: $('#fathername').val().trim(),
                         phone: $('#phone').val().trim(),
+                        email: $('#email').val().trim(),
                         comment: $('#comment').val().trim(),
                         payment: $('input[name="payment_method"]:checked').val(),
                         cart: cart,
                         total_price: $('#total_price_stream').val(),
-                        _token: $('meta[name="csrf-token"]').attr('content')
+                        _token: token
                     },
-                    success: function() {
+                    success: function(response) {
                         $('#preloader').addClass('hidden').removeClass('flex');
                         localStorage.removeItem('cart');
-                        window.location.href = '/thank-you';
+                        const redirectUrl = (response && response.redirect) ? response.redirect : '/thank-you';
+                        window.location.href = redirectUrl;
                     },
                     error: function(xhr) {
                         $('#preloader').addClass('hidden').removeClass('flex');
@@ -549,7 +585,14 @@
                         try {
                             const response = JSON.parse(xhr.responseText);
                             if (response.error) errorMessage = response.error;
+                            else if (response.message) errorMessage = response.message;
+                            else if (response.errors) {
+                                errorMessage = Object.values(response.errors).flat().join('\n');
+                            }
                         } catch (err) {}
+                        if (xhr.status === 419) {
+                            errorMessage = 'Сесія застаріла. Оновіть сторінку і спробуйте ще раз.';
+                        }
                         alert(errorMessage);
                     }
                 });

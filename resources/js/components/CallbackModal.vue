@@ -98,11 +98,28 @@ export default {
             if (rest.length >= 7) out += ` ${rest.slice(7, 9)}`;
             this.form.phone = out.trim();
         },
+        async refreshCsrfToken() {
+            try {
+                const res = await fetch('/csrf-token', {
+                    headers: { Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+                    credentials: 'same-origin',
+                });
+                const data = await res.json();
+                if (data.token) {
+                    const meta = document.querySelector('meta[name="csrf-token"]');
+                    if (meta) meta.setAttribute('content', data.token);
+                    return data.token;
+                }
+            } catch (e) {
+                // fall through
+            }
+            return document.querySelector('meta[name="csrf-token"]')?.content || '';
+        },
         async submit() {
             this.loading = true;
             this.success = '';
             this.error = '';
-            const csrf = document.querySelector('meta[name="csrf-token"]')?.content;
+            const csrf = await this.refreshCsrfToken();
 
             try {
                 const body = new FormData();
@@ -118,8 +135,34 @@ export default {
                         'X-Requested-With': 'XMLHttpRequest',
                         ...(csrf ? { 'X-CSRF-TOKEN': csrf } : {}),
                     },
+                    credentials: 'same-origin',
                     body,
                 });
+
+                if (response.status === 419) {
+                    const retryToken = await this.refreshCsrfToken();
+                    if (retryToken && retryToken !== csrf) {
+                        body.set('_token', retryToken);
+                        const retry = await fetch(this.actionUrl, {
+                            method: 'POST',
+                            headers: {
+                                Accept: 'application/json',
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRF-TOKEN': retryToken,
+                            },
+                            credentials: 'same-origin',
+                            body,
+                        });
+                        const retryData = await retry.json().catch(() => ({}));
+                        if (retry.ok && retryData.success) {
+                            this.success = retryData.message || 'Запит успішно відправлено.';
+                            this.form = { name: '', phone: '', message: '' };
+                            return;
+                        }
+                    }
+                    this.error = 'Сесія застаріла. Оновіть сторінку і спробуйте ще раз.';
+                    return;
+                }
 
                 const data = await response.json().catch(() => ({}));
 

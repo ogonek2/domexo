@@ -28,8 +28,10 @@ class Product extends Model
         'discount_starts_at',
         'discount_ends_at',
         'price',
+        'price_usd',
         'is_wholesale',
         'wholesale_price',
+        'wholesale_price_usd',
         'wholesale_min_quantity',
         'units_per_box',
         'min_order_quantity',
@@ -57,6 +59,8 @@ class Product extends Model
         'additional_fields' => 'array',
         'is_wholesale' => 'boolean',
         'wholesale_price' => 'decimal:2',
+        'price_usd' => 'decimal:2',
+        'wholesale_price_usd' => 'decimal:2',
         'wholesale_min_quantity' => 'integer',
         'units_per_box' => 'integer',
         'min_order_quantity' => 'integer',
@@ -281,6 +285,17 @@ class Product extends Model
         parent::boot();
 
         static::saving(function ($product) {
+            // USD → UAH по текущему курсу магазина (витрина всегда в грн)
+            $rate = \App\Services\ShopSettings::usdRate();
+            if ($rate > 0) {
+                if ($product->price_usd !== null && (float) $product->price_usd > 0) {
+                    $product->price = round((float) $product->price_usd * $rate, 2);
+                }
+                if ($product->wholesale_price_usd !== null && (float) $product->wholesale_price_usd > 0) {
+                    $product->wholesale_price = round((float) $product->wholesale_price_usd * $rate, 2);
+                }
+            }
+
             // Генерируем базовый URL, если пустой
             $baseUrl = self::generateHref($product->name);
 

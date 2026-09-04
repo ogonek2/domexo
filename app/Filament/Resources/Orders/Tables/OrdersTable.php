@@ -29,6 +29,19 @@ class OrdersTable
                     ->dateTime('d.m.Y H:i')
                     ->sortable(),
 
+                TextColumn::make('status')
+                    ->label('Статус')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => Orders::STATUSES[$state ?? Orders::STATUS_NEW] ?? (string) $state)
+                    ->color(fn (?string $state): string => match ($state) {
+                        Orders::STATUS_SHIPPED, Orders::STATUS_POSTED => 'info',
+                        Orders::STATUS_DELIVERED => 'success',
+                        Orders::STATUS_CANCELLED => 'danger',
+                        Orders::STATUS_ASSEMBLED => 'warning',
+                        default => 'gray',
+                    })
+                    ->sortable(),
+
                 TextColumn::make('full_name')
                     ->label('Покупатель')
                     ->getStateUsing(fn (Orders $record): string => $record->full_name ?: '—'),
@@ -36,6 +49,18 @@ class OrdersTable
                 TextColumn::make('phone')
                     ->label('Телефон')
                     ->getStateUsing(fn (Orders $record): string => $record->phone ?: '—')
+                    ->copyable(),
+
+                TextColumn::make('email')
+                    ->label('Email')
+                    ->getStateUsing(fn (Orders $record): string => $record->email ?: '—')
+                    ->toggleable()
+                    ->copyable(),
+
+                TextColumn::make('tracking_number')
+                    ->label('Накладная')
+                    ->placeholder('—')
+                    ->toggleable()
                     ->copyable(),
 
                 TextColumn::make('delivery_service')

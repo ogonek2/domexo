@@ -169,13 +169,24 @@ class ProductForm
      */
     protected static function priceFields(): array
     {
+        $rate = \App\Services\ShopSettings::usdRate();
+
         return [
+            TextInput::make('price_usd')
+                ->label('Цена (USD)')
+                ->numeric()
+                ->minValue(0)
+                ->step(0.01)
+                ->suffix('$')
+                ->helperText('Если указана — цена в грн пересчитается по курсу '.$rate.' ₴/$'),
+
             TextInput::make('price')
-                ->label('Цена')
+                ->label('Цена (UAH, на сайте)')
                 ->numeric()
                 ->minValue(0)
                 ->required()
-                ->suffix('₴'),
+                ->suffix('₴')
+                ->helperText('На витрине всегда показывается эта цена в гривнах'),
 
             TextInput::make('discount')
                 ->label('Скидка')
@@ -220,8 +231,16 @@ class ProductForm
                 ->live()
                 ->columnSpanFull(),
 
+            TextInput::make('wholesale_price_usd')
+                ->label('Оптовая цена (USD)')
+                ->numeric()
+                ->minValue(0)
+                ->step(0.01)
+                ->suffix('$')
+                ->visible(fn (Get $get): bool => (bool) $get('is_wholesale')),
+
             TextInput::make('wholesale_price')
-                ->label('Оптовая цена')
+                ->label('Оптовая цена (UAH)')
                 ->numeric()
                 ->minValue(0)
                 ->suffix('₴')

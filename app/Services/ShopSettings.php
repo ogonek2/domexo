@@ -2,6 +2,7 @@
 
 namespace App\Services;
 
+use App\Models\Product;
 use App\Models\ShopSetting;
 use Illuminate\Support\Facades\Cache;
 use Throwable;
@@ -24,6 +25,7 @@ class ShopSettings
         'store_name' => 'DOMEXO',
         'currency_symbol' => '₴',
         'currency_label' => 'грн',
+        'usd_rate' => 41.5,
         'contact_phone' => '',
         'contact_email' => '',
         'contact_address' => '',
@@ -101,9 +103,19 @@ class ShopSettings
         return (int) self::get($key, $default);
     }
 
+    public static function getFloat(string $key, float $default = 0.0): float
+    {
+        return (float) self::get($key, $default);
+    }
+
     public static function getBool(string $key, bool $default = false): bool
     {
         return (bool) self::get($key, $default);
+    }
+
+    public static function usdRate(): float
+    {
+        return max(0.0, self::getFloat('usd_rate', 41.5));
     }
 
     public static function minOrderTotal(): int
@@ -138,7 +150,61 @@ class ShopSettings
             '{store_name}' => (string) $all['store_name'],
             '{currency_symbol}' => (string) $all['currency_symbol'],
             '{currency_label}' => (string) $all['currency_label'],
+            '{usd_rate}' => number_format((float) $all['usd_rate'], 2, '.', ' '),
         ]);
+    }
+
+    /**
+     * Recalculate UAH prices from USD for products that have USD set.
+     */
+    public static function recalculateProductPricesFromUsd(?float $rate = null): int
+    {
+        $rate = $rate ?? self::usdRate();
+        if ($rate <= 0) {
+            return 0;
+        }
+
+        $updated = 0;
+
+        Product::query()
+            ->where(function ($query) {
+                $query->where(function ($q) {
+                    $q->whereNotNull('price_usd')->where('price_usd', '>', 0);
+                })->orWhere(function ($q) {
+                    $q->whereNotNull('wholesale_price_usd')->where('wholesale_price_usd', '>', 0);
+                });
+            })
+            ->orderBy('id')
+            ->chunkById(100, function ($products) use ($rate, &$updated) {
+                foreach ($products as $product) {
+                    $dirty = false;
+
+                    if ($product->price_usd !== null && (float) $product->price_usd > 0) {
+                        $product->price = round((float) $product->price_usd * $rate, 2);
+                        $dirty = true;
+                    }
+
+                    if ($product->wholesale_price_usd !== null && (float) $product->wholesale_price_usd > 0) {
+                        $product->wholesale_price = round((float) $product->wholesale_price_usd * $rate, 2);
+                        $dirty = true;
+                    }
+
+                    if ($dirty) {
+                        $product->saveQuietly();
+                        $updated++;
+                    }
+                }
+            });
+
+        if ($updated > 0 && class_exists(ProductFeedService::class)) {
+            try {
+                ProductFeedService::generate();
+            } catch (Throwable) {
+                // ignore feed errors
+            }
+        }
+
+        return $updated;
     }
 
     /**
@@ -175,6 +241,10 @@ class ShopSettings
             return in_array($value, [true, 1, '1', 'true', 'on', 'yes'], true);
         }
 
+        if (is_float($default)) {
+            return (float) $value;
+        }
+
         if (is_int($default)) {
             return (int) $value;
         }
@@ -188,6 +258,10 @@ class ShopSettings
 
         if (is_bool($default) || is_bool($value)) {
             return $value || $value === 1 || $value === '1' || $value === 'true' ? '1' : '0';
+        }
+
+        if (is_float($default)) {
+            return (string) round((float) $value, 4);
         }
 
         if (is_int($default) || is_numeric($value)) {

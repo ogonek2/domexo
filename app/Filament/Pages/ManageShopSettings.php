@@ -98,8 +98,22 @@ class ManageShopSettings extends Page
                         Textarea::make('announcement_text')
                             ->label('Текст объявления в шапке')
                             ->rows(2)
-                            ->helperText('Плейсхолдеры: {free_delivery_from}, {min_order_total}, {store_name}, {currency_symbol}')
+                            ->helperText('Плейсхолдеры: {free_delivery_from}, {min_order_total}, {store_name}, {currency_symbol}, {usd_rate}')
                             ->columnSpanFull(),
+                    ]),
+
+                Section::make('Курс USD')
+                    ->description('Цены в админке можно задавать в $, на сайте всегда показываются в грн. При смене курса UAH-цены пересчитаются автоматически.')
+                    ->columns(2)
+                    ->schema([
+                        TextInput::make('usd_rate')
+                            ->label('Курс доллара (UAH за 1 USD)')
+                            ->numeric()
+                            ->minValue(0.01)
+                            ->step(0.01)
+                            ->required()
+                            ->suffix('₴')
+                            ->helperText('Например 41.50. После сохранения товары с заполненной ценой в $ будут пересчитаны.'),
                     ]),
 
                 Section::make('Магазин')
@@ -135,6 +149,8 @@ class ManageShopSettings extends Page
     public function save(): void
     {
         $state = $this->form->getState();
+        $oldRate = ShopSettings::usdRate();
+        $newRate = (float) ($state['usd_rate'] ?? $oldRate);
 
         ShopSettings::setMany([
             'min_order_enabled' => (bool) ($state['min_order_enabled'] ?? true),
@@ -145,18 +161,29 @@ class ManageShopSettings extends Page
             'store_name' => (string) ($state['store_name'] ?? 'DOMEXO'),
             'currency_symbol' => (string) ($state['currency_symbol'] ?? '₴'),
             'currency_label' => (string) ($state['currency_label'] ?? 'грн'),
+            'usd_rate' => $newRate,
             'contact_phone' => (string) ($state['contact_phone'] ?? ''),
             'contact_email' => (string) ($state['contact_email'] ?? ''),
             'contact_address' => (string) ($state['contact_address'] ?? ''),
             'checkout_notice' => (string) ($state['checkout_notice'] ?? ''),
         ]);
 
+        $recalculated = 0;
+        if (abs($newRate - $oldRate) > 0.0001) {
+            $recalculated = ShopSettings::recalculateProductPricesFromUsd($newRate);
+        }
+
         $this->form->fill(ShopSettings::all());
 
-        Notification::make()
+        $notification = Notification::make()
             ->title('Настройки сохранены')
-            ->success()
-            ->send();
+            ->success();
+
+        if ($recalculated > 0) {
+            $notification->body("Пересчитано товаров по курсу: {$recalculated}");
+        }
+
+        $notification->send();
     }
 
     public function content(Schema $schema): Schema
