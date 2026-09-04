@@ -16,17 +16,120 @@ export function finalPrice(product) {
 
 export function isInStock(product) {
     const a = product.availability;
-    return a !== 2 && a !== '2' && a !== 'out_of_stock' && a !== false && a !== 0;
+    return a !== 2 && a !== '2' && a !== 'out_of_stock' && a !== false && a !== 0 && a !== '0';
+}
+
+export function parseQuantity(value, fallback = 1) {
+    const n = parseInt(String(value ?? '').replace(/\D/g, ''), 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+/** Strip everything except digits (for qty fields). */
+export function digitsOnly(value) {
+    return String(value ?? '').replace(/\D/g, '');
+}
+
+/** Block non-digit keypresses; allow navigation / shortcuts. */
+export function onQtyKeydown(event) {
+    if (event.ctrlKey || event.metaKey || event.altKey) return;
+
+    const allowed = [
+        'Backspace', 'Delete', 'Tab', 'Escape', 'Enter',
+        'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown',
+        'Home', 'End',
+    ];
+    if (allowed.includes(event.key)) return;
+
+    if (!/^\d$/.test(event.key)) {
+        event.preventDefault();
+    }
+}
+
+/** Paste only digits into a qty input. */
+export function onQtyPaste(event) {
+    event.preventDefault();
+    const input = event.target;
+    if (!input || typeof input.value !== 'string') return;
+
+    const pasted = digitsOnly((event.clipboardData || window.clipboardData)?.getData('text'));
+    const start = input.selectionStart ?? input.value.length;
+    const end = input.selectionEnd ?? input.value.length;
+    const next = digitsOnly(input.value.slice(0, start) + pasted + input.value.slice(end));
+
+    input.value = next;
+    const caret = Math.min(start + pasted.length, next.length);
+    try {
+        input.setSelectionRange(caret, caret);
+    } catch {
+        // ignore
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+}
+
+/** Keep only digits while typing (safety net for IME / mobile). */
+export function filterQtyInputEvent(event) {
+    const input = event.target;
+    if (!input) return '';
+    const cleaned = digitsOnly(input.value);
+    if (input.value !== cleaned) {
+        const start = input.selectionStart ?? cleaned.length;
+        input.value = cleaned;
+        const caret = Math.min(start - 1, cleaned.length);
+        try {
+            input.setSelectionRange(Math.max(0, caret), Math.max(0, caret));
+        } catch {
+            // ignore
+        }
+    }
+    return cleaned;
+}
+
+export function getCartItems() {
+    try {
+        const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+        return Array.isArray(cart) ? cart : [];
+    } catch {
+        return [];
+    }
+}
+
+export function isProductInCart(productId) {
+    return getCartItems().some((item) => item.id == productId);
+}
+
+export function getCartQuantity(productId) {
+    const item = getCartItems().find((entry) => entry.id == productId);
+    return item ? parseQuantity(item.quantity, 0) : 0;
+}
+
+export function hasWholesaleOffer(product) {
+    if (!product) return false;
+    const price = parseFloat(product.wholesale_price);
+    const min = parseInt(product.wholesale_min_quantity, 10);
+    const flagged = product.is_wholesale === true
+        || product.is_wholesale === 1
+        || product.is_wholesale === '1';
+    return (flagged || price > 0) && price > 0 && Number.isFinite(min) && min > 0;
 }
 
 export function addProductToCart(product, quantity = 1) {
-    const cart = JSON.parse(localStorage.getItem('cart') || '[]');
+    const cart = getCartItems();
     const id = product.id;
     const price = finalPrice(product);
-    const existing = cart.find(item => item.id == id);
+    const qty = parseQuantity(quantity, 1);
+    const existing = cart.find((item) => item.id == id);
 
     if (existing) {
-        existing.quantity += quantity;
+        existing.quantity = parseQuantity(existing.quantity, 0) + qty;
+        existing.name = product.name || existing.name;
+        existing.price = price;
+        existing.image = product.image_path || product.image || existing.image || '';
+        existing.articule = product.articule || existing.articule || 'Не вказано';
+        if (hasWholesaleOffer(product)) {
+            existing.isWholesale = true;
+            existing.wholesalePrice = parseFloat(product.wholesale_price);
+            existing.wholesaleMinQuantity = parseInt(product.wholesale_min_quantity, 10);
+        }
     } else {
         const item = {
             id,
@@ -34,10 +137,10 @@ export function addProductToCart(product, quantity = 1) {
             price,
             image: product.image_path || product.image || '',
             articule: product.articule || 'Не вказано',
-            quantity,
+            quantity: qty,
         };
 
-        if (product.is_wholesale && product.wholesale_price && product.wholesale_min_quantity) {
+        if (hasWholesaleOffer(product)) {
             item.isWholesale = true;
             item.wholesalePrice = parseFloat(product.wholesale_price);
             item.wholesaleMinQuantity = parseInt(product.wholesale_min_quantity, 10);
@@ -50,14 +153,16 @@ export function addProductToCart(product, quantity = 1) {
     window.dispatchEvent(new Event('cart-updated'));
 
     if (window.$toast) {
-        window.$toast.success('Додано в кошик');
+        window.$toast.success(qty > 1 ? `Додано ${qty} шт. у кошик` : 'Додано в кошик');
     }
+
+    return qty;
 }
 
 export function toggleWishlistItem(product) {
     const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
     const id = product.id;
-    const index = wishlist.findIndex(item => (typeof item === 'object' ? item.id : item) == id);
+    const index = wishlist.findIndex((item) => (typeof item === 'object' ? item.id : item) == id);
 
     if (index > -1) {
         wishlist.splice(index, 1);
@@ -83,5 +188,5 @@ export function toggleWishlistItem(product) {
 
 export function isProductInWishlist(productId) {
     const wishlist = JSON.parse(localStorage.getItem('wishlist') || '[]');
-    return wishlist.some(item => (typeof item === 'object' ? item.id : item) == productId);
+    return wishlist.some((item) => (typeof item === 'object' ? item.id : item) == productId);
 }

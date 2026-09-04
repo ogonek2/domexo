@@ -82,7 +82,7 @@
 
                 <section class="catalog-filters__block">
                     <p class="catalog-filters__label">Наявність</p>
-                    <div class="grid grid-cols-3 gap-1.5">
+                    <div class="grid grid-cols-2 gap-1.5">
                         <button
                             v-for="opt in availabilityOptions"
                             :key="opt.value"
@@ -171,7 +171,6 @@ export default {
             ],
             availabilityOptions: [
                 { value: '1', label: 'В наявності' },
-                { value: 'out', label: 'Немає' },
                 { value: 'all', label: 'Всі' },
             ],
             toggleChips: [
@@ -183,9 +182,7 @@ export default {
     },
     computed: {
         currentAvailability() {
-            const val = this.modelValue.availability;
-            if (val === 'out' || val === 'all') return val;
-            return '1';
+            return this.modelValue.availability === '1' ? '1' : 'all';
         },
         selectedNode() {
             if (!this.selectedCategoryUrl) return null;
@@ -204,7 +201,7 @@ export default {
             let count = 0;
             if (this.modelValue.priceMin || this.modelValue.priceMax) count++;
             if (this.selectedCategoryUrl) count++;
-            if (this.modelValue.availability && this.modelValue.availability !== '1') count++;
+            if (this.modelValue.availability === '1') count++;
             if (this.modelValue.discount === '1') count++;
             if (this.modelValue.wholesale === '1') count++;
             if (this.modelValue.new === '1') count++;
@@ -220,7 +217,8 @@ export default {
             this.$emit('update:modelValue', { ...this.modelValue, [key]: next });
         },
         setAvailability(value) {
-            const next = value === '1' ? '' : value;
+            // Default listing is "all"; only "in stock" is an active filter param.
+            const next = value === 'all' ? '' : value;
             this.$emit('update:modelValue', { ...this.modelValue, availability: next });
         },
         applyPricePreset(preset) {

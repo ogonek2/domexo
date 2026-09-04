@@ -292,7 +292,7 @@ export default {
             if (this.filters.priceMin) count++;
             if (this.filters.priceMax) count++;
             if (this.currentCategoryUrl) count++;
-            if (this.filters.availability && this.filters.availability !== '1') count++;
+            if (this.filters.availability === '1') count++;
             if (this.filters.discount === '1') count++;
             if (this.filters.wholesale === '1') count++;
             if (this.filters.new === '1') count++;
@@ -308,10 +308,8 @@ export default {
             if (this.currentCategoryUrl) {
                 tags.push({ key: 'category', label: this.currentCategoryName });
             }
-            if (this.filters.availability === 'out') {
-                tags.push({ key: 'availability', label: 'Немає в наявності' });
-            } else if (this.filters.availability === 'all') {
-                tags.push({ key: 'availability', label: 'Всі товари' });
+            if (this.filters.availability === '1') {
+                tags.push({ key: 'availability', label: 'В наявності' });
             }
             if (this.filters.discount === '1') {
                 tags.push({ key: 'discount', label: 'Зі знижкою' });
@@ -326,8 +324,9 @@ export default {
         },
     },
     watch: {
+        // Shallow only: deep watch re-hydrated stale spaState products after
+        // filter/pagination fetch mutated nested config fields (hero, etc.).
         config: {
-            deep: true,
             handler(next) {
                 this.hydrateFromConfig(next);
             },
@@ -394,7 +393,8 @@ export default {
 
             this.filters.priceMin = source.price_min || '';
             this.filters.priceMax = source.price_max || '';
-            this.filters.availability = source.availability || '';
+            // Only "in stock" is a real filter; legacy ?availability=out is ignored.
+            this.filters.availability = source.availability === '1' ? '1' : '';
             this.filters.discount = source.discount || '';
             this.filters.wholesale = source.wholesale || '';
             this.filters.new = source.new || '';
@@ -473,16 +473,6 @@ export default {
 
                     if (Array.isArray(payload.breadcrumbs)) {
                         this.breadcrumbs = [...payload.breadcrumbs];
-                    }
-
-                    if (payload.hero && this.config.hero) {
-                        Object.assign(this.config.hero, payload.hero);
-                    } else if (this.config.hero && this.pagination.total != null) {
-                        this.config.hero.stat = this.pagination.total;
-                    }
-
-                    if (payload.currentCategory) {
-                        this.config.currentCategory = payload.currentCategory;
                     }
 
                     if (pushState) {

@@ -28,6 +28,22 @@ class Category extends Model
         'sort_order' => 'integer',
     ];
 
+    /**
+     * Колонки для лістингів. SELECT * + ORDER BY sort_order, name
+     * на хостингу mysql.tools дає SQLSTATE[HY093].
+     */
+    public const LISTING_COLUMNS = [
+        'id',
+        'name',
+        'url',
+        'parent_id',
+        'template_id',
+        'is_active',
+        'sort_order',
+        'meta_image',
+        'description',
+    ];
+
     // Отношения
     public function products()
     {

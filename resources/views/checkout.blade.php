@@ -253,6 +253,9 @@
                                 Оформити замовлення
                             </button>
                             <p id="checkout-minimum-message" class="mt-3 text-sm text-center hidden"></p>
+                            @if (!empty(shop_settings_public()['checkout_notice']))
+                                <p class="mt-2 text-sm text-center text-slate-500">{{ shop_settings_public()['checkout_notice'] }}</p>
+                            @endif
                         </div>
 
                         <meta name="csrf-token" content="{{ csrf_token() }}">
@@ -279,7 +282,10 @@
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
     <script>
-        const MIN_ORDER_TOTAL = 1000;
+        const MIN_ORDER_TOTAL = (window.__SHOP_SETTINGS__ && window.__SHOP_SETTINGS__.min_order_enabled === false)
+            ? 0
+            : (Number(window.__SHOP_SETTINGS__?.min_order_total) || 1000);
+        const CURRENCY_SYMBOL = window.__SHOP_SETTINGS__?.currency_symbol || '₴';
 
         $(document).ready(function() {
             let cities = [];
@@ -299,12 +305,12 @@
                     minOrderMessage.classList.remove('text-red-600', 'text-[#0B1F3B]');
                 }
 
-                if (total < MIN_ORDER_TOTAL) {
+                if (MIN_ORDER_TOTAL > 0 && total < MIN_ORDER_TOTAL) {
                     submitButton.disabled = true;
                     submitButton.classList.add('cursor-not-allowed', 'opacity-60', 'pointer-events-none');
                     if (minOrderMessage) {
                         const difference = Math.ceil(MIN_ORDER_TOTAL - total);
-                        minOrderMessage.textContent = `Мінімальна сума замовлення — 1000 ₴. Додайте товарів ще на ${difference.toLocaleString('uk-UA')} ₴.`;
+                        minOrderMessage.textContent = `Мінімальна сума замовлення — ${MIN_ORDER_TOTAL.toLocaleString('uk-UA')} ${CURRENCY_SYMBOL}. Додайте товарів ще на ${difference.toLocaleString('uk-UA')} ${CURRENCY_SYMBOL}.`;
                         minOrderMessage.classList.add('text-red-600');
                         minOrderMessage.classList.remove('hidden');
                     }
@@ -312,9 +318,13 @@
                     submitButton.disabled = false;
                     submitButton.classList.remove('cursor-not-allowed', 'opacity-60', 'pointer-events-none');
                     if (minOrderMessage) {
-                        minOrderMessage.textContent = 'Мінімальна сума замовлення виконана. Можна оформлювати.';
-                        minOrderMessage.classList.add('text-[#0B1F3B]');
-                        minOrderMessage.classList.remove('hidden');
+                        if (MIN_ORDER_TOTAL > 0) {
+                            minOrderMessage.textContent = 'Мінімальна сума замовлення виконана. Можна оформлювати.';
+                            minOrderMessage.classList.add('text-[#0B1F3B]');
+                            minOrderMessage.classList.remove('hidden');
+                        } else {
+                            minOrderMessage.classList.add('hidden');
+                        }
                     }
                 }
             };

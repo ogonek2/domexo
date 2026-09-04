@@ -33,7 +33,9 @@
                         <div class="product-page__meta">
                             <span class="product-page__articule">Артикул: <strong>{{ product.articule || '—' }}</strong></span>
                             <span v-if="product.brand" class="product-page__brand">{{ product.brand }}</span>
-                            <span class="product-page__stock">
+                            <span
+                                class="product-page__stock"
+                                :class="product.inStock ? 'product-page__stock--in' : 'product-page__stock--out'">
                                 <span class="pcard__stock-dot" :class="product.inStock ? 'pcard__stock-dot--yes' : 'pcard__stock-dot--no'"></span>
                                 {{ product.inStock ? 'В наявності' : 'Немає в наявності' }}
                             </span>
@@ -58,25 +60,30 @@
                             <p v-if="product.discount > 0" class="product-page__old-price">{{ formatPrice(product.price) }} грн</p>
                             <p class="product-page__min-order">Замовлення від {{ minOrderQuantity }} {{ product.unit_name }}</p>
 
-                            <div v-if="product.is_wholesale && product.wholesale_price && product.wholesale_min_quantity" class="product-page__wholesale">
+                            <button
+                                v-if="product.is_wholesale && product.wholesale_price && product.wholesale_min_quantity"
+                                type="button"
+                                class="product-page__wholesale product-page__wholesale--action"
+                                :title="`Обрати ${product.wholesale_min_quantity} ${product.unit_name_plural || product.unit_name || 'шт'}`"
+                                @click="selectWholesaleQty">
                                 <div class="product-page__wholesale-label">
                                     <AppIcon name="package" :size="16" />
-                                    Оптова ціна
+                                    Оптова ціна — натисніть, щоб обрати кількість
                                 </div>
                                 <div class="product-page__wholesale-row">
                                     <span class="product-page__wholesale-price">{{ formatPrice(product.wholesale_price) }} грн</span>
-                                    <span class="product-page__wholesale-from">від {{ product.wholesale_min_quantity }} {{ product.unit_name_plural }}</span>
+                                    <span class="product-page__wholesale-from">від {{ product.wholesale_min_quantity }} {{ product.unit_name_plural || product.unit_name }}</span>
                                 </div>
-                            </div>
+                            </button>
                         </div>
 
                         <div class="product-page__buy-actions">
                             <ProductBuyBox :product-data="buyBoxProduct" />
                         </div>
 
-                        <p class="product-page__min-sum">
+                        <p v-if="minOrderTotal > 0" class="product-page__min-sum">
                             <AppIcon name="info" :size="14" />
-                            Мінімальна сума замовлення — 1000 грн
+                            Мінімальна сума замовлення — {{ formatPrice(minOrderTotal) }} {{ currencyLabel }}
                         </p>
 
                         <ul class="product-page__trust">
@@ -152,6 +159,7 @@ import AppIcon from '../components/AppIcon.vue';
 import ProductGallery from '../components/ProductGallery.vue';
 import ProductBuyBox from '../components/ProductBuyBox.vue';
 import ProductList from '../components/ProductList.vue';
+import { getMinOrderTotal, getCurrencyLabel } from '../utils/shopSettings.js';
 
 export default {
     name: 'ProductRoutePage',
@@ -203,6 +211,8 @@ export default {
             product,
             facts,
             minOrderQuantity,
+            minOrderTotal: getMinOrderTotal(),
+            currencyLabel: getCurrencyLabel(),
             images: computed(() => data.value.images || []),
             characteristics: computed(() => data.value.characteristics || []),
             recommendedProducts: computed(() => data.value.recommendedProducts || []),
@@ -215,7 +225,17 @@ export default {
     methods: {
         formatPrice(value) {
             const num = Number(value) || 0;
-            return num.toLocaleString('uk-UA', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            return num.toLocaleString('uk-UA', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+        },
+        selectWholesaleQty() {
+            const item = this.product;
+            if (!item?.wholesale_min_quantity) return;
+            window.dispatchEvent(new CustomEvent('set-product-qty', {
+                detail: {
+                    id: item.id,
+                    qty: item.wholesale_min_quantity,
+                },
+            }));
         },
     },
 };

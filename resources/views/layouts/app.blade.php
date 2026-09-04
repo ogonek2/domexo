@@ -33,6 +33,10 @@
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 
+    <script>
+        window.__SHOP_SETTINGS__ = @json(shop_settings_public());
+    </script>
+
     @stack('styles')
 
 </head>

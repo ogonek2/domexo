@@ -5,7 +5,12 @@ use App\Models\Product;
 use Illuminate\Support\Facades\Http;
 
 function get_all_category() {
-    return Category::where('is_active', true)
+    // На хостингу mysql.tools (ProxySQL) запит
+    // `SELECT * … ORDER BY sort_order, name` падає з HY093.
+    // Явний select + той самий порядок колонок — стабільний.
+    return Category::query()
+        ->select(Category::LISTING_COLUMNS)
+        ->where('is_active', true)
         ->orderBy('sort_order', 'asc')
         ->orderBy('name', 'asc')
         ->get();
@@ -24,8 +29,9 @@ if (!function_exists('get_category_total_products')) {
         static $calculatedTotals = [];
 
         if ($categoryChildrenMap === null || $categoryDirectCounts === null) {
-            $categories = Category::where('is_active', true)
+            $categories = Category::query()
                 ->select(['id', 'parent_id'])
+                ->where('is_active', true)
                 ->withCount('products')
                 ->get();
 
@@ -125,14 +131,18 @@ if (!function_exists('get_category_filter_tree')) {
     function get_category_filter_tree($roots = null): array
     {
         $roots = $roots ?? Category::query()
+            ->select(Category::LISTING_COLUMNS)
             ->where('is_active', true)
             ->whereNull('parent_id')
             ->orderBy('name')
             ->with(['childCategories' => function ($q) {
-                $q->where('is_active', true)
+                $q->select(Category::LISTING_COLUMNS)
+                    ->where('is_active', true)
                     ->orderBy('name')
                     ->with(['childCategories' => function ($q2) {
-                        $q2->where('is_active', true)->orderBy('name');
+                        $q2->select(Category::LISTING_COLUMNS)
+                            ->where('is_active', true)
+                            ->orderBy('name');
                     }]);
             }])
             ->get();
@@ -204,15 +214,18 @@ if (!function_exists('get_mega_menu_data')) {
     function get_mega_menu_data(): array
     {
         $roots = Category::query()
+            ->select(Category::LISTING_COLUMNS)
             ->where('is_active', true)
             ->whereNull('parent_id')
             ->orderBy('name')
             ->with(['childCategories' => function ($q) {
-                $q->where('is_active', true)
+                $q->select(Category::LISTING_COLUMNS)
+                    ->where('is_active', true)
                     ->orderBy('name')
                     ->withCount('products')
                     ->with(['childCategories' => function ($q2) {
-                        $q2->where('is_active', true)
+                        $q2->select(Category::LISTING_COLUMNS)
+                            ->where('is_active', true)
                             ->orderBy('name')
                             ->withCount('products');
                     }]);
@@ -328,4 +341,31 @@ function generateUniqueImageName($originalName = null, $prefix = 'img') {
     $fileName = $prefix . '_' . uniqid('', true) . '_' . random_int(10000, 99999) . '.' . $extension;
     
     return $fileName;
+}
+
+if (! function_exists('shop_settings')) {
+    /**
+     * @return array<string, mixed>
+     */
+    function shop_settings(): array
+    {
+        return \App\Services\ShopSettings::all();
+    }
+}
+
+if (! function_exists('shop_settings_public')) {
+    /**
+     * @return array<string, mixed>
+     */
+    function shop_settings_public(): array
+    {
+        return \App\Services\ShopSettings::public();
+    }
+}
+
+if (! function_exists('shop_min_order_total')) {
+    function shop_min_order_total(): int
+    {
+        return \App\Services\ShopSettings::minOrderTotal();
+    }
 }

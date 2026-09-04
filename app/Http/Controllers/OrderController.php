@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use App\Models\Orders;
 use App\Models\Product;
+use App\Services\ShopSettings;
 
 use App\Mail\OrderSubmitted;
 use Illuminate\Support\Facades\Mail;
@@ -46,6 +47,20 @@ class OrderController extends Controller
             return response()->json([
                 'error' => 'Некорректная структура корзины'
             ], 400);
+        }
+
+        $minOrderTotal = ShopSettings::minOrderTotal();
+        $orderTotal = is_numeric($request->total_price) ? (float) $request->total_price : 0;
+        if ($minOrderTotal > 0 && $orderTotal < $minOrderTotal) {
+            $symbol = ShopSettings::get('currency_symbol', '₴');
+
+            return response()->json([
+                'error' => sprintf(
+                    'Мінімальна сума замовлення — %s %s',
+                    number_format($minOrderTotal, 0, '.', ' '),
+                    $symbol
+                ),
+            ], 422);
         }
 
         // Обрабатываем каждый товар в корзине

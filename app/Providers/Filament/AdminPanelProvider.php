@@ -42,6 +42,8 @@ class AdminPanelProvider extends PanelProvider
                     ->icon(Heroicon::OutlinedRectangleStack),
                 NavigationGroup::make('Продажи')
                     ->icon(Heroicon::OutlinedShoppingCart),
+                NavigationGroup::make('Настройки')
+                    ->icon(Heroicon::OutlinedCog6Tooth),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

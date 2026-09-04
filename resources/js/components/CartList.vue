@@ -17,10 +17,24 @@
 
                     <div class="checkout-cart__actions">
                         <div class="pcard__qty checkout-cart__qty">
-                            <button type="button" class="pcard__qty-btn" :disabled="item.quantity <= 1" @click="decrease(item.id)">
+                            <button type="button" class="pcard__qty-btn" :disabled="draftQty(item) <= 1" @click="decrease(item.id)">
                                 <AppIcon name="minus" :size="12" />
                             </button>
-                            <span class="pcard__qty-value">{{ item.quantity }}</span>
+                            <label class="pcard__qty-field">
+                                <input
+                                    type="text"
+                                    inputmode="numeric"
+                                    pattern="[0-9]*"
+                                    autocomplete="off"
+                                    class="pcard__qty-input"
+                                    aria-label="Кількість"
+                                    :value="qtyDrafts[item.id] ?? item.quantity"
+                                    @keydown="onQtyKeydown"
+                                    @paste="onQtyPaste"
+                                    @input="onCartQtyInput(item.id, $event)"
+                                    @blur="commitCartQty(item.id, $event)"
+                                    @keydown.enter.prevent="commitCartQty(item.id, $event)" />
+                            </label>
                             <button type="button" class="pcard__qty-btn" @click="increase(item.id)">
                                 <AppIcon name="plus" :size="12" />
                             </button>
@@ -53,9 +67,9 @@
                 <span>{{ formatPrice(totalPrice) }} ₴</span>
             </div>
             <p v-if="isBelowMinimum" class="checkout-cart__notice checkout-cart__notice--warn">
-                Мінімальна сума — 1000 ₴. Додайте ще на {{ formatPrice(amountToReachMinimum) }} ₴.
+                Мінімальна сума — {{ formatPrice(minOrderTotal) }} {{ currencySymbol }}. Додайте ще на {{ formatPrice(amountToReachMinimum) }} {{ currencySymbol }}.
             </p>
-            <p v-else class="checkout-cart__notice checkout-cart__notice--ok">
+            <p v-else-if="minOrderTotal > 0" class="checkout-cart__notice checkout-cart__notice--ok">
                 Мінімальну суму досягнуто — можна оформлювати.
             </p>
         </div>
@@ -66,14 +80,24 @@
 
 <script>
 import AppIcon from './AppIcon.vue';
-
-const MIN_ORDER_TOTAL = 1000;
+import {
+    parseQuantity,
+    onQtyKeydown,
+    onQtyPaste,
+    filterQtyInputEvent,
+} from '../utils/cart.js';
+import { getMinOrderTotal, getCurrencySymbol } from '../utils/shopSettings.js';
 
 export default {
     name: 'CartList',
     components: { AppIcon },
     data() {
-        return { cart: [] };
+        return {
+            cart: [],
+            qtyDrafts: {},
+            minOrderTotal: getMinOrderTotal(),
+            currencySymbol: getCurrencySymbol(),
+        };
     },
     computed: {
         totalPrice() {
@@ -84,10 +108,10 @@ export default {
             return this.cart.reduce((sum, item) => sum + (item.quantity || 1), 0);
         },
         isBelowMinimum() {
-            return this.totalPrice < MIN_ORDER_TOTAL;
+            return this.minOrderTotal > 0 && this.totalPrice < this.minOrderTotal;
         },
         amountToReachMinimum() {
-            const difference = MIN_ORDER_TOTAL - this.totalPrice;
+            const difference = this.minOrderTotal - this.totalPrice;
             return difference > 0 ? Math.ceil(difference) : 0;
         },
     },
@@ -99,33 +123,59 @@ export default {
         window.removeEventListener('cart-updated', this.loadCart);
     },
     methods: {
+        onQtyKeydown,
+        onQtyPaste,
+        draftQty(item) {
+            if (Object.prototype.hasOwnProperty.call(this.qtyDrafts, item.id)) {
+                return parseQuantity(this.qtyDrafts[item.id], 1);
+            }
+            return parseQuantity(item.quantity, 1);
+        },
         loadCart() {
             try {
                 this.cart = JSON.parse(localStorage.getItem('cart') || '[]');
             } catch {
                 this.cart = [];
             }
+            this.qtyDrafts = {};
         },
         saveCart() {
             localStorage.setItem('cart', JSON.stringify(this.cart));
             window.dispatchEvent(new Event('cart-updated'));
         },
+        clearDraft(id) {
+            if (Object.prototype.hasOwnProperty.call(this.qtyDrafts, id)) {
+                delete this.qtyDrafts[id];
+            }
+        },
+        setQuantity(id, value) {
+            const item = this.cart.find((entry) => entry.id == id);
+            if (!item) return;
+            item.quantity = parseQuantity(value, 1);
+            this.clearDraft(id);
+            this.saveCart();
+        },
+        onCartQtyInput(id, event) {
+            this.qtyDrafts[id] = filterQtyInputEvent(event);
+        },
+        commitCartQty(id, event) {
+            const raw = filterQtyInputEvent(event);
+            this.setQuantity(id, raw);
+            if (event?.target) event.target.value = String(parseQuantity(raw, 1));
+        },
         increase(id) {
             const item = this.cart.find((entry) => entry.id == id);
-            if (item) {
-                item.quantity++;
-                this.saveCart();
-            }
+            if (!item) return;
+            this.setQuantity(id, parseQuantity(item.quantity, 1) + 1);
         },
         decrease(id) {
             const item = this.cart.find((entry) => entry.id == id);
-            if (item && item.quantity > 1) {
-                item.quantity--;
-                this.saveCart();
-            }
+            if (!item || item.quantity <= 1) return;
+            this.setQuantity(id, parseQuantity(item.quantity, 1) - 1);
         },
         remove(id) {
             this.cart = this.cart.filter((entry) => entry.id != id);
+            this.clearDraft(id);
             this.saveCart();
         },
         getItemPrice(item) {
@@ -220,14 +270,25 @@ export default {
     margin-top: 0.5rem;
 }
 
-.checkout-cart__qty { max-width: 140px; }
+.checkout-cart__qty {
+    max-width: 140px;
+    width: 140px;
+    flex-shrink: 0;
+}
 
 .checkout-cart__remove {
-    background: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    margin: 0;
+    padding: 0;
+    background: #fff;
     border: 1px solid #ddd;
-    padding: 0.3rem 0.4rem;
     color: #666;
     cursor: pointer;
+    line-height: 1;
 }
 
 .checkout-cart__remove:hover { border-color: #1E1E1E; color: #1E1E1E; }

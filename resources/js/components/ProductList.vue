@@ -2,7 +2,7 @@
     <div class="w-full">
         <div v-if="!loading && items.length > 0"
              data-product-grid
-             class="grid grid-cols-2 sm:grid-cols-3 g:grid-cols-4 xl:grid-cols-5">
+             class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             <ProductCardItem
                 v-for="product in items"
                 :key="product.id"
@@ -52,30 +52,10 @@ export default {
     },
     methods: {
         hydrateFromPropsOrDataset() {
-            const fromProps = Array.isArray(this.products) ? this.products : [];
-            if (fromProps.length > 0) {
-                this.items = fromProps;
-                this.page = this.pagination && typeof this.pagination === 'object' ? this.pagination : {};
-                return;
-            }
-
-            const host = this.$el?.closest?.('[data-products]') || this.$el;
-            const rawProducts = host?.getAttribute?.('data-products') ?? host?.dataset?.products ?? '';
-            const rawPagination = host?.getAttribute?.('data-pagination') ?? host?.dataset?.pagination ?? '';
-
-            try {
-                const parsed = rawProducts ? JSON.parse(rawProducts) : [];
-                this.items = Array.isArray(parsed) ? parsed : [];
-            } catch {
-                this.items = [];
-            }
-
-            try {
-                const parsed = rawPagination ? JSON.parse(rawPagination) : {};
-                this.page = parsed && typeof parsed === 'object' ? parsed : {};
-            } catch {
-                this.page = {};
-            }
+            // Always trust the products prop (including empty filtered results).
+            // Falling back to dataset when length === 0 kept stale cards after filters.
+            this.items = Array.isArray(this.products) ? this.products : [];
+            this.page = this.pagination && typeof this.pagination === 'object' ? this.pagination : {};
         },
     },
 };

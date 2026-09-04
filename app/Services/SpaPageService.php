@@ -84,7 +84,7 @@ class SpaPageService
                 'availability', 'is_wholesale', 'wholesale_price', 'wholesale_min_quantity',
                 'units_per_box', 'unit_name', 'unit_name_plural', 'created_at',
             ])
-            ->whereIn('availability', ['in_stock', '1', 1]);
+            ->whereIn('availability', ['in_stock', '1']);
     }
 
     /**
@@ -191,6 +191,7 @@ class SpaPageService
         $paginator->appends($request->query());
 
         $childCategories = $category->childCategories()
+            ->select(Category::LISTING_COLUMNS)
             ->where('is_active', true)
             ->orderBy('name')
             ->get();
@@ -269,7 +270,7 @@ class SpaPageService
             $recommendedProducts = Product::query()
                 ->whereHas('categories', fn ($query) => $query->whereIn('categories.id', $categoryIds))
                 ->where('id', '!=', $product->id)
-                ->whereIn('availability', ['in_stock', '1', 1])
+                ->whereIn('availability', ['in_stock', '1'])
                 ->select([
                     'id', 'name', 'price', 'discount', 'image_path', 'url',
                     'articule', 'availability', 'is_wholesale', 'wholesale_price', 'wholesale_min_quantity',

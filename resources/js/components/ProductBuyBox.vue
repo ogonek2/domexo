@@ -1,19 +1,42 @@
 <template>
     <div class="buy-box">
-        <div v-if="inStock" class="buy-box__qty pcard__qty">
-            <button type="button" class="pcard__qty-btn" :disabled="quantity <= 1" @click="quantity > 1 && quantity--">
-                <AppIcon name="minus" :size="16" />
+        <div v-if="inStock" class="buy-box__qty pcard__qty pcard__qty--lg">
+            <button type="button" class="pcard__qty-btn" :disabled="quantity <= 1" aria-label="Зменшити кількість" @click="decreaseQty">
+                <AppIcon name="minus" :size="18" />
             </button>
-            <span class="pcard__qty-value">{{ quantity }} {{ unitLabel }}</span>
-            <button type="button" class="pcard__qty-btn" @click="quantity++">
-                <AppIcon name="plus" :size="16" />
+            <label class="pcard__qty-field">
+                <input
+                    ref="qtyInput"
+                    type="text"
+                    inputmode="numeric"
+                    pattern="[0-9]*"
+                    autocomplete="off"
+                    class="pcard__qty-input"
+                    aria-label="Кількість"
+                    :value="quantityInput"
+                    @keydown="onQtyKeydown"
+                    @paste="onQtyPaste"
+                    @input="onQtyInput"
+                    @keydown.enter.prevent="handleAddToCart"
+                    @blur="normalizeQty" />
+                <span class="pcard__qty-unit">{{ unitLabel }}</span>
+            </label>
+            <button type="button" class="pcard__qty-btn" aria-label="Збільшити кількість" @click="increaseQty">
+                <AppIcon name="plus" :size="18" />
             </button>
         </div>
 
         <div class="buy-box__actions">
-            <button type="button" class="buy-box__cart" :disabled="!inStock" @click="handleAddToCart">
+            <button
+                type="button"
+                class="buy-box__cart"
+                :class="{ 'buy-box__cart--in-cart': inCart }"
+                :disabled="!inStock"
+                @click="handleAddToCart">
                 <AppIcon name="shopping-cart" :size="18" />
-                {{ inStock ? 'Додати до кошика' : 'Немає в наявності' }}
+                <template v-if="!inStock">Немає в наявності</template>
+                <template v-else-if="inCart">У кошику · ще +{{ quantity }}</template>
+                <template v-else>Додати до кошика</template>
             </button>
             <button type="button"
                     class="buy-box__wishlist"
@@ -24,6 +47,8 @@
             </button>
         </div>
 
+        <p v-if="inCart" class="buy-box__cart-qty">Зараз у кошику: {{ cartQuantity }} {{ unitLabel }}</p>
+
         <a v-if="inCart" href="/koshyk" class="buy-box__goto">
             Перейти в кошик
             <AppIcon name="arrow-right" :size="16" />
@@ -33,7 +58,17 @@
 
 <script>
 import AppIcon from './AppIcon.vue';
-import { addProductToCart, toggleWishlistItem, isProductInWishlist, isInStock } from '../utils/cart.js';
+import {
+    addProductToCart,
+    toggleWishlistItem,
+    isProductInWishlist,
+    isInStock,
+    getCartQuantity,
+    parseQuantity,
+    onQtyKeydown,
+    onQtyPaste,
+    filterQtyInputEvent,
+} from '../utils/cart.js';
 
 export default {
     name: 'ProductBuyBox',
@@ -44,14 +79,20 @@ export default {
     data() {
         return {
             product: {},
-            quantity: 1,
+            quantityInput: '1',
             inWishlist: false,
-            inCart: false,
+            cartQuantity: 0,
         };
     },
     computed: {
         inStock() {
             return isInStock(this.product);
+        },
+        inCart() {
+            return this.cartQuantity > 0;
+        },
+        quantity() {
+            return parseQuantity(this.quantityInput, 1);
         },
         unitLabel() {
             return this.product.unit_name || 'шт';
@@ -73,12 +114,16 @@ export default {
         this.syncState();
         window.addEventListener('cart-updated', this.syncCart);
         window.addEventListener('wishlist-updated', this.syncWishlist);
+        window.addEventListener('set-product-qty', this.onExternalQty);
     },
     unmounted() {
         window.removeEventListener('cart-updated', this.syncCart);
         window.removeEventListener('wishlist-updated', this.syncWishlist);
+        window.removeEventListener('set-product-qty', this.onExternalQty);
     },
     methods: {
+        onQtyKeydown,
+        onQtyPaste,
         readProduct() {
             if (this.productData && typeof this.productData === 'object') {
                 this.product = { ...this.productData };
@@ -92,8 +137,7 @@ export default {
             }
         },
         syncCart() {
-            const cart = JSON.parse(localStorage.getItem('cart') || '[]');
-            this.inCart = cart.some(i => i.id == this.product.id);
+            this.cartQuantity = getCartQuantity(this.product.id);
         },
         syncWishlist() {
             this.inWishlist = isProductInWishlist(this.product.id);
@@ -102,10 +146,35 @@ export default {
             this.syncCart();
             this.syncWishlist();
         },
+        readQty() {
+            const fromDom = this.$refs.qtyInput?.value;
+            return parseQuantity(fromDom ?? this.quantityInput, 1);
+        },
+        setQty(value) {
+            this.quantityInput = String(parseQuantity(value, 1));
+        },
+        onQtyInput(event) {
+            this.quantityInput = filterQtyInputEvent(event);
+        },
+        decreaseQty() {
+            this.setQty(Math.max(1, this.readQty() - 1));
+        },
+        increaseQty() {
+            this.setQty(this.readQty() + 1);
+        },
+        normalizeQty() {
+            this.setQty(this.readQty());
+        },
+        onExternalQty(event) {
+            const detail = event?.detail || {};
+            if (detail.id != null && detail.id != this.product.id) return;
+            if (detail.qty != null) this.setQty(detail.qty);
+        },
         handleAddToCart() {
             if (!this.inStock) return;
-            addProductToCart(this.product, this.quantity);
-            this.quantity = 1;
+            const qty = this.readQty();
+            this.setQty(qty);
+            addProductToCart(this.product, qty);
             this.syncCart();
         },
         handleWishlist() {
@@ -117,7 +186,7 @@ export default {
 </script>
 
 <style scoped>
-.buy-box__qty { margin-bottom: 0.75rem; max-width: 220px; }
+.buy-box__qty { margin-bottom: 0.75rem; max-width: 280px; }
 
 .buy-box__actions {
     display: flex;
@@ -143,6 +212,21 @@ export default {
 
 .buy-box__cart:hover:not(:disabled) { background: #C5A059; }
 .buy-box__cart:disabled { background: #eee; color: #999; cursor: not-allowed; }
+
+.buy-box__cart--in-cart {
+    background: #0B1F3B;
+    color: #fff;
+}
+
+.buy-box__cart--in-cart:hover:not(:disabled) {
+    background: #16375f;
+}
+
+.buy-box__cart-qty {
+    margin: 0.5rem 0 0;
+    font-size: 0.8125rem;
+    color: #64748b;
+}
 
 .buy-box__wishlist {
     width: 3rem;

@@ -4,7 +4,7 @@
     <div class="site-header__announce">
         <p class="site-header__announce-text">
             <x-lucide-icon name="truck" width="14" />
-            Безкоштовна доставка по Києву та Україні
+            {{ shop_settings_public()['announcement_text'] ?? 'Безкоштовна доставка від 10000₴' }}
         </p>
     </div>
 

@@ -32,7 +32,7 @@ class ProductListingService
                 'unit_name_plural',
             ])
             // Legacy data can contain 1/2 instead of in_stock/out_of_stock.
-            ->whereIn('availability', ['in_stock', '1', 1]);
+            ->whereIn('availability', ['in_stock', '1']);
     }
 
     /**
@@ -64,21 +64,27 @@ class ProductListingService
     }
 
     /**
-     * Availability: default in_stock; all | out supported.
+     * Availability: default shows all (in-stock first via sort); "1" = in stock only.
      */
     public function applyAvailability(Builder $query, Request $request): Builder
     {
         $availability = (string) $request->input('availability', '');
 
-        if ($availability === 'all') {
+        // Default / "all": no availability filter — out-of-stock listed last by sort.
+        if ($availability === '' || $availability === 'all') {
             return $query;
         }
 
-        if ($availability === 'out') {
-            return $query->whereIn('availability', ['out_of_stock', '2', 2, 0, '0']);
+        if ($availability === '1' || $availability === 'in' || $availability === 'in_stock') {
+            return $query->whereIn('availability', ['in_stock', '1']);
         }
 
-        return $query->whereIn('availability', ['in_stock', '1', 1]);
+        // Legacy URL support (?availability=out).
+        if ($availability === 'out') {
+            return $query->whereIn('availability', ['out_of_stock', '2', '0']);
+        }
+
+        return $query;
     }
 
     /**
@@ -95,11 +101,15 @@ class ProductListingService
         }
 
         if ($request->boolean('discount')) {
-            $query->where('discount', '>', 0);
+            $query->whereRaw('CAST(discount AS DECIMAL(10,2)) > 0');
         }
 
         if ($request->boolean('wholesale')) {
-            $query->where('is_wholesale', 1);
+            $query->where(function (Builder $q) {
+                $q->where('is_wholesale', 1)
+                    ->orWhere('is_wholesale', true)
+                    ->orWhere('is_wholesale', '1');
+            });
         }
 
         if ($request->boolean('new')) {
@@ -124,10 +134,15 @@ class ProductListingService
     }
 
     /**
-     * Apply sorting. Default is newest unless "random" explicitly requested.
+     * Apply sorting. In-stock first, then out-of-stock. Default secondary sort is newest.
      */
     public function applySort(Builder $query, string $sort): Builder
     {
+        $query->orderByRaw(
+            'CASE WHEN availability IN (?, ?) THEN 0 ELSE 1 END ASC',
+            ['in_stock', '1']
+        );
+
         return match ($sort) {
             'price_asc' => $query->orderByRaw('CAST(price AS DECIMAL(10,2)) ASC'),
             'price_desc' => $query->orderByRaw('CAST(price AS DECIMAL(10,2)) DESC'),
