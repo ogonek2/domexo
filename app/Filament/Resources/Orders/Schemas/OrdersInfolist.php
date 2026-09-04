@@ -3,8 +3,6 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Models\Orders;
-use Filament\Infolists\Components\ImageEntry;
-use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -48,81 +46,60 @@ class OrdersInfolist
                 Section::make('Покупатель')
                     ->columns(3)
                     ->schema([
-                        TextEntry::make('name')->label('Имя')->placeholder('—'),
-                        TextEntry::make('lastname')->label('Фамилия')->placeholder('—'),
-                        TextEntry::make('fathername')->label('Отчество')->placeholder('—'),
-                        TextEntry::make('phone')->label('Телефон')->copyable()->placeholder('—'),
-                        TextEntry::make('email')->label('Email')->copyable()->placeholder('—'),
-                        TextEntry::make('comment')->label('Комментарий')->columnSpanFull()->placeholder('—'),
+                        TextEntry::make('name')
+                            ->label('Имя')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('name')),
+                        TextEntry::make('lastname')
+                            ->label('Фамилия')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('lastname')),
+                        TextEntry::make('fathername')
+                            ->label('Отчество')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('fathername')),
+                        TextEntry::make('phone')
+                            ->label('Телефон')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('phone'))
+                            ->copyable(fn (Orders $record): bool => $record->displayValue('phone') !== '—'),
+                        TextEntry::make('email')
+                            ->label('Email')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('email'))
+                            ->copyable(fn (Orders $record): bool => $record->displayValue('email') !== '—'),
+                        TextEntry::make('comment')
+                            ->label('Комментарий')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('comment'))
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Доставка и оплата')
                     ->columns(2)
                     ->schema([
-                        TextEntry::make('delivery_service')->label('Служба доставки')->placeholder('—'),
-                        TextEntry::make('payment')->label('Способ оплаты')->placeholder('—'),
-                        TextEntry::make('city')->label('Город')->placeholder('—'),
-                        TextEntry::make('warehouse')->label('Отделение')->placeholder('—'),
-                        TextEntry::make('manual_address')->label('Адрес вручную')->columnSpanFull()->placeholder('—'),
+                        TextEntry::make('delivery_service')
+                            ->label('Служба доставки')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('delivery_service')),
+                        TextEntry::make('payment')
+                            ->label('Способ оплаты')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('payment')),
+                        TextEntry::make('city')
+                            ->label('Город')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('city')),
+                        TextEntry::make('warehouse')
+                            ->label('Отделение')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('warehouse')),
+                        TextEntry::make('manual_address')
+                            ->label('Адрес вручную')
+                            ->getStateUsing(fn (Orders $record): string => $record->displayValue('manual_address'))
+                            ->columnSpanFull(),
                     ]),
 
                 Section::make('Состав заказа (для сборки)')
                     ->description('Полный список позиций для склада')
                     ->schema([
-                        RepeatableEntry::make('cart_items')
+                        // Лёгкий HTML вместо RepeatableEntry+ImageEntry (на хостинге давало 503).
+                        TextEntry::make('cart_html')
                             ->hiddenLabel()
-                            ->columns(12)
-                            ->schema([
-                                ImageEntry::make('image')
-                                    ->label('Фото')
-                                    ->getStateUsing(function (array $state): ?string {
-                                        $img = $state['image'] ?? $state['image_path'] ?? null;
-                                        if (! is_string($img) || $img === '') {
-                                            return null;
-                                        }
-                                        if (str_starts_with($img, 'http://') || str_starts_with($img, 'https://') || str_starts_with($img, '//')) {
-                                            return $img;
-                                        }
-
-                                        return asset('storage/'.ltrim($img, '/'));
-                                    })
-                                    ->height(64)
-                                    ->square()
-                                    ->columnSpan(2),
-
-                                TextEntry::make('articule')
-                                    ->label('Артикул')
-                                    ->placeholder('—')
-                                    ->copyable()
-                                    ->columnSpan(2),
-
-                                TextEntry::make('name')
-                                    ->label('Товар')
-                                    ->columnSpan(4),
-
-                                TextEntry::make('quantity')
-                                    ->label('Кол-во')
-                                    ->weight(FontWeight::Bold)
-                                    ->size(TextSize::Large)
-                                    ->columnSpan(1),
-
-                                TextEntry::make('price')
-                                    ->label('Цена')
-                                    ->formatStateUsing(fn ($state): string => number_format((float) $state, 0, '.', ' ').' ₴')
-                                    ->columnSpan(1),
-
-                                TextEntry::make('line_total')
-                                    ->label('Сумма')
-                                    ->getStateUsing(function (array $state): string {
-                                        $qty = (int) ($state['quantity'] ?? 1);
-                                        $price = (float) ($state['price'] ?? 0);
-
-                                        return number_format($qty * $price, 0, '.', ' ').' ₴';
-                                    })
-                                    ->weight(FontWeight::Bold)
-                                    ->columnSpan(2),
-                            ])
-                            ->placeholder('Не удалось прочитать состав корзины'),
+                            ->html()
+                            ->getStateUsing(fn (Orders $record): string => view('filament.orders.cart-items', [
+                                'order' => $record,
+                            ])->render()),
                     ]),
             ]);
     }

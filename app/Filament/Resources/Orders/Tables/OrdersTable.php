@@ -44,18 +44,25 @@ class OrdersTable
 
                 TextColumn::make('full_name')
                     ->label('Покупатель')
-                    ->getStateUsing(fn (Orders $record): string => $record->full_name ?: '—'),
+                    ->getStateUsing(function (Orders $record): string {
+                        $name = $record->full_name;
+                        if ($name === '' || $name === '—' || Orders::looksLikeEncryptedPayload($name)) {
+                            return 'Заказ #'.$record->id.' (не удалось расшифровать)';
+                        }
+
+                        return $name;
+                    }),
 
                 TextColumn::make('phone')
                     ->label('Телефон')
-                    ->getStateUsing(fn (Orders $record): string => $record->phone ?: '—')
-                    ->copyable(),
+                    ->getStateUsing(fn (Orders $record): string => $record->displayValue('phone'))
+                    ->copyable(fn (Orders $record): bool => $record->displayValue('phone') !== '—'),
 
                 TextColumn::make('email')
                     ->label('Email')
-                    ->getStateUsing(fn (Orders $record): string => $record->email ?: '—')
+                    ->getStateUsing(fn (Orders $record): string => $record->displayValue('email'))
                     ->toggleable()
-                    ->copyable(),
+                    ->copyable(fn (Orders $record): bool => $record->displayValue('email') !== '—'),
 
                 TextColumn::make('tracking_number')
                     ->label('Накладная')
@@ -65,18 +72,18 @@ class OrdersTable
 
                 TextColumn::make('delivery_service')
                     ->label('Доставка')
-                    ->getStateUsing(fn (Orders $record): string => $record->delivery_service ?: '—')
+                    ->getStateUsing(fn (Orders $record): string => $record->displayValue('delivery_service'))
                     ->badge()
                     ->color('info'),
 
                 TextColumn::make('city')
                     ->label('Город')
-                    ->getStateUsing(fn (Orders $record): string => $record->city ?: '—')
+                    ->getStateUsing(fn (Orders $record): string => $record->displayValue('city'))
                     ->toggleable(),
 
                 TextColumn::make('payment')
                     ->label('Оплата')
-                    ->getStateUsing(fn (Orders $record): string => $record->payment ?: '—')
+                    ->getStateUsing(fn (Orders $record): string => $record->displayValue('payment'))
                     ->toggleable(),
 
                 TextColumn::make('positions')
