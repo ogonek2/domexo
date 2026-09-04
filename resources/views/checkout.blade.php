@@ -20,8 +20,14 @@
         }
         .select2-container--default .select2-selection--single .select2-selection__rendered { line-height: 28px; color: #1E1E1E; padding-left: 0; }
         .select2-container--default .select2-selection--single .select2-selection__arrow { height: 44px; }
-        .select2-dropdown { border-color: #e5e7eb; border-radius: 0; }
+        .select2-dropdown { border-color: #e5e7eb; border-radius: 0; z-index: 10050; }
+        .select2-container { width: 100% !important; }
+        .select2-container--open { z-index: 10050; }
         .select2-container--default .select2-results__option--highlighted.select2-results__option--selectable { background: #0B1F3B; }
+        #novaposhta-details .select2-container--default .select2-selection--single {
+            cursor: pointer;
+            background: #fff;
+        }
     </style>
 @endpush
 
@@ -292,8 +298,6 @@
         const CURRENCY_SYMBOL = window.__SHOP_SETTINGS__?.currency_symbol || '₴';
 
         $(document).ready(function() {
-            let cities = [];
-            let warehouses = [];
             let selectedCityRef = '';
             const submitButton = document.getElementById('submit-order');
             const minOrderMessage = document.getElementById('checkout-minimum-message');
@@ -360,17 +364,66 @@
             });
 
             $('#city-select').select2({
-                placeholder: 'Оберіть місто',
+                placeholder: 'Почніть вводити місто…',
                 allowClear: true,
                 width: '100%',
-                language: { noResults: () => 'Міста не знайдено', searching: () => 'Пошук...' },
+                minimumInputLength: 2,
+                dropdownParent: $('#novaposhta-details'),
+                language: {
+                    inputTooShort: () => 'Введіть щонайменше 2 літери',
+                    noResults: () => 'Міста не знайдено',
+                    searching: () => 'Пошук…',
+                    errorLoading: () => 'Помилка завантаження',
+                },
+                ajax: {
+                    url: '/cities',
+                    dataType: 'json',
+                    delay: 300,
+                    data: (params) => ({ q: params.term || '' }),
+                    processResults: (data) => ({
+                        results: (Array.isArray(data) ? data : []).map((city) => ({
+                            id: city.Ref,
+                            text: city.Description,
+                        })),
+                    }),
+                    cache: true,
+                },
             });
 
             $('#warehouse-select').select2({
-                placeholder: 'Оберіть відділення',
+                placeholder: 'Спочатку оберіть місто',
                 allowClear: true,
                 width: '100%',
-                language: { noResults: () => 'Відділення не знайдено', searching: () => 'Пошук...' },
+                minimumInputLength: 0,
+                dropdownParent: $('#novaposhta-details'),
+                language: {
+                    noResults: () => 'Відділення не знайдено',
+                    searching: () => 'Пошук…',
+                    errorLoading: () => 'Помилка завантаження',
+                },
+                ajax: {
+                    url: '/warehouses',
+                    dataType: 'json',
+                    delay: 250,
+                    type: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
+                        Accept: 'application/json',
+                        'X-Requested-With': 'XMLHttpRequest',
+                    },
+                    data: (params) => ({
+                        cityRef: selectedCityRef,
+                        q: params.term || '',
+                        _token: $('meta[name="csrf-token"]').attr('content'),
+                    }),
+                    processResults: (data) => ({
+                        results: (Array.isArray(data) ? data : []).map((wh) => ({
+                            id: wh.Ref,
+                            text: wh.Description,
+                        })),
+                    }),
+                    cache: true,
+                },
             });
 
             function showDeliveryDetails(service) {
@@ -380,7 +433,8 @@
 
                 if (service === 'novaposhta') {
                     $('#novaposhta-details').removeClass('hidden');
-                    loadCities();
+                    // Select2 мог инициализироваться в display:none — обновим ширину
+                    $('#city-select, #warehouse-select').trigger('change.select2');
                 } else if (service === 'pickup') {
                     $('#delivery-details').addClass('hidden');
                 } else {
@@ -394,61 +448,17 @@
                 $(`#payment-info-${method}`).removeClass('hidden');
             }
 
-            function loadCities() {
-                $('#city-loader').removeClass('hidden');
-                $.get('/cities')
-                    .done(function(data) {
-                        cities = data;
-                        populateCitySelect(data);
-                    })
-                    .always(function() {
-                        $('#city-loader').addClass('hidden');
-                    });
-            }
-
-            function populateCitySelect(citiesData) {
-                const $select = $('#city-select');
-                $select.empty().append('<option value="">Оберіть місто</option>');
-                citiesData.forEach((city) => {
-                    $select.append(`<option value="${city.Ref}">${city.Description}</option>`);
-                });
-                $select.trigger('change.select2');
-            }
-
             $('#city-select').on('change', function() {
-                const cityRef = $(this).val();
-                if (cityRef) {
-                    selectedCityRef = cityRef;
-                    loadWarehouses(cityRef);
-                }
+                selectedCityRef = $(this).val() || '';
+                $('#warehouse-select').val(null).trigger('change');
             });
 
-            function loadWarehouses(cityRef) {
-                $('#warehouse-loader').removeClass('hidden');
-                $.ajax({
-                    method: 'POST',
-                    url: '/warehouses',
-                    headers: { 'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content') },
-                    contentType: 'application/json',
-                    data: JSON.stringify({ cityRef }),
-                    success: function(data) {
-                        warehouses = data;
-                        populateWarehouseSelect(data);
-                    },
-                    complete: function() {
-                        $('#warehouse-loader').addClass('hidden');
-                    }
-                });
-            }
-
-            function populateWarehouseSelect(warehousesData) {
-                const $select = $('#warehouse-select');
-                $select.empty().append('<option value="">Оберіть відділення</option>');
-                warehousesData.forEach((warehouse) => {
-                    $select.append(`<option value="${warehouse.Ref}">${warehouse.Description}</option>`);
-                });
-                $select.trigger('change.select2');
-            }
+            $('#warehouse-select').on('select2:opening', function(e) {
+                if (!selectedCityRef) {
+                    e.preventDefault();
+                    alert('Спочатку оберіть місто');
+                }
+            });
 
             function validateForm() {
                 let isValid = true;
@@ -559,8 +569,8 @@
                     },
                     data: {
                         delivery_service: $('input[name="delivery_service"]:checked').val(),
-                        city: $('#city-select option:selected').text(),
-                        warehouse: $('#warehouse-select option:selected').text(),
+                        city: (($('#city-select').select2('data')[0] || {}).text || ''),
+                        warehouse: (($('#warehouse-select').select2('data')[0] || {}).text || ''),
                         manual_address: $('#manual-address').val().trim(),
                         name: $('#name').val().trim(),
                         lastname: $('#lastname').val().trim(),

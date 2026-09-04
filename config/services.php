@@ -35,4 +35,10 @@ return [
         ],
     ],
 
+    'novaposhta' => [
+        'api_key' => env('NOVA_POSHTA_API_KEY', ''),
+        'verify_ssl' => filter_var(env('NOVA_POSHTA_VERIFY_SSL', true), FILTER_VALIDATE_BOOLEAN),
+        'base_url' => env('NOVA_POSHTA_API_URL', 'https://api.novaposhta.ua/v2.0/json/'),
+    ],
+
 ];

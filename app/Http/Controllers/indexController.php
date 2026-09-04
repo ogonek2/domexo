@@ -2,9 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\NovaPoshtaService;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use App\Services\ProductListingService;
 
 class indexController extends Controller
 {
@@ -13,39 +13,23 @@ class indexController extends Controller
         return view('checkout');
     }
 
-    public function getCities()
+    public function getCities(Request $request, NovaPoshtaService $np): JsonResponse
     {
-        $response = Http::post('https://api.novaposhta.ua/v2.0/json/', [
-            'apiKey' => env('NOVA_POSHTA_API_KEY'),
-            'modelName' => 'Address',
-            'calledMethod' => 'getCities',
-        ]);
+        $q = (string) $request->query('q', $request->query('term', ''));
 
-        $data = $response['data'];
+        // Select2 ajax иногда шлёт term, иногда q
+        if ($q === '' && is_string($request->input('term'))) {
+            $q = $request->input('term');
+        }
 
-        $formatted = collect($data)->map(function ($city) {
-            $type = $city['SettlementTypeDescription'] ?? 'місто';
-            $label = $city['Description'] . " ({$type})";
-            return [
-                'Ref' => $city['Ref'],
-                'Description' => $label,
-            ];
-        });
-
-        return response()->json($formatted);
+        return response()->json($np->searchCities($q));
     }
 
-    public function getWarehouses(Request $request)
+    public function getWarehouses(Request $request, NovaPoshtaService $np): JsonResponse
     {
-        $response = Http::post('https://api.novaposhta.ua/v2.0/json/', [
-            'apiKey' => env('NOVA_POSHTA_API_KEY'),
-            'modelName' => 'Address',
-            'calledMethod' => 'getWarehouses',
-            'methodProperties' => [
-                'CityRef' => $request->cityRef,
-            ],
-        ]);
+        $cityRef = (string) ($request->input('cityRef') ?? $request->query('cityRef', ''));
+        $q = (string) ($request->input('q') ?? $request->input('term') ?? $request->query('q', ''));
 
-        return $response['data'];
+        return response()->json($np->warehousesForCity($cityRef, $q));
     }
 }
