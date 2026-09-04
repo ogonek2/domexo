@@ -121,19 +121,28 @@ class OrderController extends Controller
             Log::error('Admin order email failed: '.$e->getMessage());
         }
 
-        TelegramNotifier::sendNewOrder(
+        $tgOk = TelegramNotifier::sendNewOrder(
             [
                 'id' => $order->id,
                 'name' => $order->name,
                 'lastname' => $order->lastname,
+                'fathername' => $order->fathername,
                 'phone' => $order->phone,
                 'email' => $order->email,
                 'delivery_service' => $order->delivery_service,
                 'payment' => $order->payment,
+                'city' => $order->city,
+                'warehouse' => $order->warehouse,
+                'manual_address' => $order->manual_address,
+                'comment' => $order->comment,
             ],
             $cart,
             $orderTotal
         );
+
+        if (! $tgOk) {
+            Log::warning('Order created but Telegram notify failed', ['order_id' => $order->id]);
+        }
 
         try {
             $productIds = collect($cart)->pluck('id')->filter()->all();

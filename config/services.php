@@ -41,4 +41,11 @@ return [
         'base_url' => env('NOVA_POSHTA_API_URL', 'https://api.novaposhta.ua/v2.0/json/'),
     ],
 
+    'telegram' => [
+        'bot_token' => env('TG_BOT_TOKEN', ''),
+        'chat_id' => env('TG_CHAT_ID', ''),
+        // На shared-хостинге SSL к api.telegram.org часто падает.
+        'verify_ssl' => filter_var(env('TG_VERIFY_SSL', false), FILTER_VALIDATE_BOOLEAN),
+    ],
+
 ];

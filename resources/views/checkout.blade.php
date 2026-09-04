@@ -378,7 +378,7 @@
                 ajax: {
                     url: '/cities',
                     dataType: 'json',
-                    delay: 300,
+                    delay: 400,
                     data: (params) => ({ q: params.term || '' }),
                     processResults: (data) => ({
                         results: (Array.isArray(data) ? data : []).map((city) => ({
@@ -390,41 +390,72 @@
                 },
             });
 
-            $('#warehouse-select').select2({
+            // Відділення — звичайний select2 без ajax: один запит після вибору міста
+            // (ajax Select2 раніше спамив /warehouses десятками запитів → 503 на хостингу)
+            const $warehouse = $('#warehouse-select');
+            $warehouse.select2({
                 placeholder: 'Спочатку оберіть місто',
                 allowClear: true,
                 width: '100%',
-                minimumInputLength: 0,
                 dropdownParent: $('#novaposhta-details'),
                 language: {
                     noResults: () => 'Відділення не знайдено',
                     searching: () => 'Пошук…',
-                    errorLoading: () => 'Помилка завантаження',
                 },
-                ajax: {
+            });
+            $warehouse.prop('disabled', true);
+
+            let warehousesXhr = null;
+
+            function resetWarehouses(placeholder) {
+                if (warehousesXhr) {
+                    warehousesXhr.abort();
+                    warehousesXhr = null;
+                }
+                $warehouse.empty().append(`<option value="">${placeholder}</option>`);
+                $warehouse.val(null).trigger('change');
+            }
+
+            function loadWarehousesOnce(cityRef) {
+                resetWarehouses('Завантаження…');
+                $warehouse.prop('disabled', true);
+                $('#warehouse-loader').removeClass('hidden');
+
+                warehousesXhr = $.ajax({
+                    method: 'POST',
                     url: '/warehouses',
                     dataType: 'json',
-                    delay: 250,
-                    type: 'POST',
                     headers: {
                         'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content'),
                         Accept: 'application/json',
                         'X-Requested-With': 'XMLHttpRequest',
                     },
-                    data: (params) => ({
-                        cityRef: selectedCityRef,
-                        q: params.term || '',
+                    data: {
+                        cityRef: cityRef,
                         _token: $('meta[name="csrf-token"]').attr('content'),
-                    }),
-                    processResults: (data) => ({
-                        results: (Array.isArray(data) ? data : []).map((wh) => ({
-                            id: wh.Ref,
-                            text: wh.Description,
-                        })),
-                    }),
-                    cache: true,
-                },
-            });
+                    },
+                })
+                    .done(function(data) {
+                        const list = Array.isArray(data) ? data : [];
+                        resetWarehouses(list.length ? 'Оберіть відділення' : 'Відділень не знайдено');
+                        list.forEach((wh) => {
+                            $warehouse.append(
+                                $('<option>', { value: wh.Ref, text: wh.Description })
+                            );
+                        });
+                        $warehouse.prop('disabled', list.length === 0);
+                        $warehouse.trigger('change.select2');
+                    })
+                    .fail(function(xhr) {
+                        if (xhr.statusText === 'abort') return;
+                        resetWarehouses('Помилка завантаження відділень');
+                        $warehouse.prop('disabled', true);
+                    })
+                    .always(function() {
+                        warehousesXhr = null;
+                        $('#warehouse-loader').addClass('hidden');
+                    });
+            }
 
             function showDeliveryDetails(service) {
                 $('#delivery-details').removeClass('hidden');
@@ -433,7 +464,6 @@
 
                 if (service === 'novaposhta') {
                     $('#novaposhta-details').removeClass('hidden');
-                    // Select2 мог инициализироваться в display:none — обновим ширину
                     $('#city-select, #warehouse-select').trigger('change.select2');
                 } else if (service === 'pickup') {
                     $('#delivery-details').addClass('hidden');
@@ -450,13 +480,11 @@
 
             $('#city-select').on('change', function() {
                 selectedCityRef = $(this).val() || '';
-                $('#warehouse-select').val(null).trigger('change');
-            });
-
-            $('#warehouse-select').on('select2:opening', function(e) {
-                if (!selectedCityRef) {
-                    e.preventDefault();
-                    alert('Спочатку оберіть місто');
+                if (selectedCityRef) {
+                    loadWarehousesOnce(selectedCityRef);
+                } else {
+                    resetWarehouses('Спочатку оберіть місто');
+                    $warehouse.prop('disabled', true);
                 }
             });
 
