@@ -9,6 +9,8 @@ class OrdersRevenueChart extends ChartWidget
 {
     protected static ?int $sort = -19;
 
+    protected static bool $isLazy = true;
+
     protected ?string $heading = 'Заказы и выручка за 30 дней';
 
     protected ?string $description = 'Количество заказов и сумма продаж по дням';
@@ -16,6 +18,11 @@ class OrdersRevenueChart extends ChartWidget
     protected ?string $maxHeight = '280px';
 
     protected int|string|array $columnSpan = 'full';
+
+    public function isEmpty(): bool
+    {
+        return false;
+    }
 
     protected function getType(): string
     {

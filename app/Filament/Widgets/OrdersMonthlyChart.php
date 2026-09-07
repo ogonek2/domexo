@@ -9,11 +9,18 @@ class OrdersMonthlyChart extends ChartWidget
 {
     protected static ?int $sort = -18;
 
+    protected static bool $isLazy = true;
+
     protected ?string $heading = 'Заказы по месяцам';
 
     protected ?string $maxHeight = '260px';
 
     protected int|string|array $columnSpan = 1;
+
+    public function isEmpty(): bool
+    {
+        return false;
+    }
 
     protected function getType(): string
     {
