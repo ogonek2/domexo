@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Pages;
 
+use App\Filament\Resources\Products\Actions\ProductCriticalExportAction;
 use App\Filament\Resources\Products\Actions\ProductExportAction;
 use App\Filament\Resources\Products\Actions\ProductImportAction;
 use App\Filament\Resources\Products\Actions\ProductTemplateAction;
@@ -35,6 +36,9 @@ class ListProducts extends ListRecords
                 ->icon(Heroicon::OutlinedArrowsUpDown)
                 ->button()
                 ->color('gray'),
+
+            ProductCriticalExportAction::make()
+                ->button(),
 
             CreateAction::make(),
         ];

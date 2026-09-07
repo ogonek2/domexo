@@ -47,6 +47,19 @@ class ProductExporter
     /**
      * @return array<int, string>
      */
+    public function fieldKeys(): array
+    {
+        return $this->fields;
+    }
+
+    public function extension(): string
+    {
+        return $this->format === self::FORMAT_XLSX ? 'xlsx' : 'csv';
+    }
+
+    /**
+     * @return array<int, string>
+     */
     public function headers(): array
     {
         return array_map(
@@ -192,10 +205,5 @@ class ProductExporter
         $writer->close();
 
         return $path;
-    }
-
-    public function extension(): string
-    {
-        return $this->format === self::FORMAT_XLSX ? 'xlsx' : 'csv';
     }
 }

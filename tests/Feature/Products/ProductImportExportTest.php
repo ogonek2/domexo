@@ -6,6 +6,7 @@ use App\Models\Catalog;
 use App\Models\Category;
 use App\Models\Product;
 use App\Models\productImage;
+use App\Services\Products\ProductDataQuality;
 use App\Services\Products\ProductExporter;
 use App\Services\Products\ProductFieldMap;
 use App\Services\Products\ProductImporter;
@@ -427,5 +428,45 @@ class ProductImportExportTest extends TestCase
 
         $this->assertSame([$catalog->id], $product->catalogs->pluck('id')->all());
         $this->assertNotEmpty($result->problems);
+    }
+
+    public function test_critical_fix_file_updates_product_by_id(): void
+    {
+        $category = Category::query()->create(['name' => 'Коврики']);
+        $product = Product::query()->create([
+            'name' => 'Малый коврик',
+            'price' => 0,
+            'image_path' => null,
+            'articule' => 'MK-1',
+        ]);
+
+        $this->assertTrue(ProductDataQuality::incomplete()->whereKey($product->id)->exists());
+
+        $exportPath = (new ProductExporter(ProductFieldMap::criticalFixFields()))
+            ->write($this->tempFile('csv'), ProductDataQuality::incomplete());
+
+        $rows = array_map(
+            static fn (string $line): array => str_getcsv($line, ';'),
+            array_values(array_filter(explode("\n", str_replace("\r", '', file_get_contents($exportPath))))),
+        );
+
+        $this->assertSame('ID', preg_replace('/^\xEF\xBB\xBF/', '', $rows[0][0]));
+        $this->assertContains('Цена', $rows[0]);
+        $this->assertContains('Категории', $rows[0]);
+
+        $fixPath = $this->writeCsv($this->tempFile('csv'), [
+            ['ID', 'Название', 'Цена', 'Категории', 'Главное изображение'],
+            [(string) $product->id, 'Малый коврик', '450', 'Коврики', 'https://cdn.example.com/rug.jpg'],
+        ]);
+
+        $result = (new ProductImporter(['update_existing' => true]))->import($fixPath);
+        $product->refresh();
+
+        $this->assertSame(1, $result->updated);
+        $this->assertSame(0, $result->created);
+        $this->assertSame('450', (string) $product->price);
+        $this->assertSame('https://cdn.example.com/rug.jpg', $product->image_path);
+        $this->assertSame([$category->id], $product->categories->pluck('id')->all());
+        $this->assertFalse(ProductDataQuality::incomplete()->whereKey($product->id)->exists());
     }
 }

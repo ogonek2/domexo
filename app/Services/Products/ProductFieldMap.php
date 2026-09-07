@@ -225,7 +225,7 @@ class ProductFieldMap
                 'label' => 'Главное изображение',
                 'group' => self::GROUP_IMAGES,
                 'type' => self::TYPE_STRING,
-                'aliases' => [],
+                'aliases' => ['Изображение', 'Фото', 'Картинка'],
                 'example' => 'https://images.prom.ua/7661102500_fonarik.jpg',
             ],
             'images' => [
@@ -289,6 +289,27 @@ class ProductFieldMap
                 'example' => 'likhtarik-almina-dl-2424',
                 'importable' => false,
             ],
+        ];
+    }
+
+    /**
+     * Поля для правки пробелов после импорта: ID обязателен для обратной загрузки.
+     *
+     * @return array<int, string>
+     */
+    public static function criticalFixFields(): array
+    {
+        return [
+            'id',
+            'name',
+            'articule',
+            'price',
+            'categories',
+            'image_path',
+            'images',
+            'description',
+            'brand',
+            'characteristics',
         ];
     }
 
