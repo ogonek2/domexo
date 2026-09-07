@@ -104,6 +104,12 @@ class OrderController extends Controller
 
         $order = Orders::create($orderData);
 
+        try {
+            \App\Services\ShopAnalytics::forgetCache();
+        } catch (Throwable) {
+            // ignore
+        }
+
         $adminEmail = (string) ShopSettings::get('contact_email', '');
         if ($adminEmail === '') {
             $adminEmail = (string) env('MAIL_ADMIN_ADDRESS', 'zmartcomua@gmail.com');

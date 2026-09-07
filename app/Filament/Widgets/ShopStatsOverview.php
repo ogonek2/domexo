@@ -2,50 +2,46 @@
 
 namespace App\Filament\Widgets;
 
-use App\Models\Category;
-use App\Models\Orders;
-use App\Models\Product;
+use App\Services\ShopAnalytics;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 
 class ShopStatsOverview extends StatsOverviewWidget
 {
-    protected static ?int $sort = -3;
+    protected static ?int $sort = -20;
+
+    protected ?string $heading = 'Сводка магазина';
 
     protected function getStats(): array
     {
-        $total = Product::query()->count();
-        $inStock = Product::query()->where('availability', 'in_stock')->count();
-        $discounted = Product::query()->where('discount', '>', 0)->count();
-        $withoutImage = Product::query()
-            ->where(fn ($query) => $query->whereNull('image_path')->orWhere('image_path', ''))
-            ->count();
+        $o = ShopAnalytics::overview();
+        $abandoned = ShopAnalytics::abandonedCarts();
 
         return [
-            Stat::make('Товаров', (string) $total)
-                ->description($inStock . ' в наличии, ' . ($total - $inStock) . ' нет')
-                ->descriptionIcon('heroicon-m-cube')
-                ->color($inStock > 0 ? 'success' : 'danger'),
+            Stat::make('Заказы за месяц', (string) $o['orders'])
+                ->description('Всего: '.$o['orders_total'])
+                ->descriptionIcon('heroicon-m-shopping-bag')
+                ->color('success'),
 
-            Stat::make('Со скидкой', (string) $discounted)
-                ->description('Товары с ненулевой скидкой')
-                ->descriptionIcon('heroicon-m-tag')
+            Stat::make('Выручка за месяц', number_format($o['revenue'], 0, '.', ' ').' ₴')
+                ->description('Средний чек: '.number_format($o['avg_check'], 0, '.', ' ').' ₴')
+                ->descriptionIcon('heroicon-m-banknotes')
                 ->color('warning'),
 
-            Stat::make('Без фото', (string) $withoutImage)
-                ->description('Требуют загрузки изображения')
-                ->descriptionIcon('heroicon-m-photo')
-                ->color($withoutImage > 0 ? 'danger' : 'success'),
-
-            Stat::make('Категорий', (string) Category::query()->count())
-                ->description('Активных: ' . Category::query()->where('is_active', true)->count())
-                ->descriptionIcon('heroicon-m-squares-2x2')
+            Stat::make('Выручка всего', number_format($o['revenue_total'], 0, '.', ' ').' ₴')
+                ->description('По всем расшифрованным заказам')
+                ->descriptionIcon('heroicon-m-chart-bar')
                 ->color('info'),
 
-            Stat::make('Заказов', (string) Orders::query()->count())
-                ->description('За 7 дней: ' . Orders::query()->where('created_at', '>=', now()->subDays(7))->count())
+            Stat::make('Товары', (string) $o['products'])
+                ->description('В наличии: '.$o['in_stock'])
+                ->descriptionIcon('heroicon-m-cube')
+                ->color('primary'),
+
+            Stat::make('Брошенные корзины', (string) $abandoned['count'])
+                ->description('За 7 дней: '.$abandoned['recent'].' · телефонов: '.$abandoned['phones'])
                 ->descriptionIcon('heroicon-m-shopping-cart')
-                ->color('info'),
+                ->color($abandoned['count'] > 0 ? 'danger' : 'gray'),
         ];
     }
 }

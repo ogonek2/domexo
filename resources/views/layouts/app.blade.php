@@ -60,6 +60,15 @@
 
         <callback-modal data-action="{{ route('contact_request') }}"></callback-modal>
 
+        <a href="https://t.me/amin7kmm"
+           class="tg-float"
+           target="_blank"
+           rel="noopener noreferrer"
+           aria-label="Telegram канал DOMEXO">
+            <i class="fab fa-telegram-plane" aria-hidden="true"></i>
+            <span class="tg-float__label">Telegram</span>
+        </a>
+
         <toast-notification></toast-notification>
 
     </div>

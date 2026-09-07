@@ -21,6 +21,10 @@
                 <x-lucide-icon name="headphones" width="14" />
                 Замовити дзвінок
             </button>
+            <a href="https://t.me/amin7kmm" target="_blank" rel="noopener noreferrer" class="site-header__telegram">
+                <i class="fab fa-telegram-plane" aria-hidden="true"></i>
+                Telegram
+            </a>
         </div>
     </div>
 
@@ -160,5 +164,9 @@
             <x-lucide-icon name="headphones" width="18" />
             Замовити дзвінок
         </button>
+        <a href="https://t.me/amin7kmm" target="_blank" rel="noopener noreferrer" class="mobile-menu__telegram">
+            <i class="fab fa-telegram-plane" aria-hidden="true"></i>
+            Telegram-канал
+        </a>
     </div>
 </aside>

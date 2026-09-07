@@ -49,6 +49,10 @@
                         <x-lucide-icon name="map-pin" width="16" class="text-[#D4AF5A] mt-0.5" />
                         <span class="text-white/60">Одеса, Україна</span>
                     </li>
+                    <li class="flex items-start gap-3">
+                        <i class="fab fa-telegram-plane text-[#D4AF5A] mt-0.5" style="width:16px;text-align:center;"></i>
+                        <a href="https://t.me/amin7kmm" target="_blank" rel="noopener noreferrer" class="text-white/80 hover:text-white transition-colors">Telegram-канал</a>
+                    </li>
                 </ul>
             </div>
 

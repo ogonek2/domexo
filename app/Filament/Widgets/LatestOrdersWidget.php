@@ -11,7 +11,7 @@ use Filament\Widgets\TableWidget;
 
 class LatestOrdersWidget extends TableWidget
 {
-    protected static ?int $sort = -2;
+    protected static ?int $sort = -15;
 
     protected int|string|array $columnSpan = 'full';
 
@@ -35,7 +35,7 @@ class LatestOrdersWidget extends TableWidget
 
                 TextColumn::make('phone')
                     ->label('Телефон')
-                    ->getStateUsing(fn (Orders $record): string => $record->phone ?: '—'),
+                    ->getStateUsing(fn (Orders $record): string => $record->displayValue('phone')),
 
                 TextColumn::make('total_price')
                     ->label('Сумма')

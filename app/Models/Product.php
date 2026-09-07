@@ -285,6 +285,23 @@ class Product extends Model
         parent::boot();
 
         static::saving(function ($product) {
+            // Скидка никогда не null — иначе SQLSTATE 23000 на NOT NULL / старых схемах.
+            $product->discount = max(0, min(100, (int) ($product->discount ?? 0)));
+
+            // Пустые USD-поля → null (не пустая строка), чтобы decimal-cast не падал.
+            foreach (['price_usd', 'wholesale_price_usd'] as $usdField) {
+                $raw = $product->{$usdField};
+                if ($raw === '' || $raw === null) {
+                    $product->{$usdField} = null;
+                }
+            }
+
+            foreach (['description', 'description_ru'] as $textField) {
+                if ($product->{$textField} === null) {
+                    $product->{$textField} = '';
+                }
+            }
+
             // USD → UAH по текущему курсу магазина (витрина всегда в грн)
             $rate = \App\Services\ShopSettings::usdRate();
             if ($rate > 0) {

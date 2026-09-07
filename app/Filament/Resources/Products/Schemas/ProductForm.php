@@ -12,7 +12,6 @@ use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\KeyValue;
 use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
-use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -120,9 +119,14 @@ class ProductForm
                 ->columnSpanFull()
                 ->helperText('Генерируется автоматически из названия при каждом сохранении.'),
 
-            RichEditor::make('description')
+            Textarea::make('description')
                 ->label('Описание')
-                ->columnSpanFull(),
+                ->rows(8)
+                ->columnSpanFull()
+                ->nullable()
+                ->formatStateUsing(fn ($state): string => is_string($state) ? $state : '')
+                ->dehydrateStateUsing(fn ($state): string => is_string($state) ? $state : '')
+                ->helperText('Можно HTML. Rich-editor отключён: TipTap падал на описаниях из Prom.ua.'),
 
             Textarea::make('complectation')
                 ->label('Комплектация')
@@ -144,8 +148,12 @@ class ProductForm
                         ->label('Название (рус.)')
                         ->maxLength(255),
 
-                    RichEditor::make('description_ru')
-                        ->label('Описание (рус.)'),
+                    Textarea::make('description_ru')
+                        ->label('Описание (рус.)')
+                        ->rows(6)
+                        ->nullable()
+                        ->formatStateUsing(fn ($state): string => is_string($state) ? $state : '')
+                        ->dehydrateStateUsing(fn ($state): string => is_string($state) ? $state : ''),
                 ]),
         ];
     }
@@ -178,6 +186,7 @@ class ProductForm
                 ->minValue(0)
                 ->step(0.01)
                 ->suffix('$')
+                ->nullable()
                 ->helperText('Если указана — цена в грн пересчитается по курсу '.$rate.' ₴/$'),
 
             TextInput::make('price')
@@ -194,21 +203,23 @@ class ProductForm
                 ->minValue(0)
                 ->maxValue(100)
                 ->default(0)
+                ->required()
                 ->suffix('%')
-                ->live(onBlur: true),
+                ->live(onBlur: true)
+                ->dehydrateStateUsing(fn ($state): int => max(0, min(100, (int) ($state ?? 0)))),
 
             DatePicker::make('discount_starts_at')
                 ->label('Скидка действует с')
                 ->native(false)
                 ->displayFormat('d.m.Y')
-                ->visible(fn (Get $get): bool => (int) $get('discount') > 0),
+                ->visible(fn (Get $get): bool => (int) ($get('discount') ?? 0) > 0),
 
             DatePicker::make('discount_ends_at')
                 ->label('Скидка действует до')
                 ->native(false)
                 ->displayFormat('d.m.Y')
                 ->afterOrEqual('discount_starts_at')
-                ->visible(fn (Get $get): bool => (int) $get('discount') > 0)
+                ->visible(fn (Get $get): bool => (int) ($get('discount') ?? 0) > 0)
                 ->helperText('Справочные даты: витрина считает скидку постоянной, пока её не убрать вручную.'),
 
             TextInput::make('unit_name')
@@ -237,6 +248,7 @@ class ProductForm
                 ->minValue(0)
                 ->step(0.01)
                 ->suffix('$')
+                ->nullable()
                 ->visible(fn (Get $get): bool => (bool) $get('is_wholesale')),
 
             TextInput::make('wholesale_price')
