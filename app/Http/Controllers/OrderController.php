@@ -112,7 +112,7 @@ class OrderController extends Controller
 
         $adminEmail = (string) ShopSettings::get('contact_email', '');
         if ($adminEmail === '') {
-            $adminEmail = (string) env('MAIL_ADMIN_ADDRESS', 'zmartcomua@gmail.com');
+            $adminEmail = (string) env('MAIL_ADMIN_ADDRESS', 'shershah169@gmail.com');
         }
 
         try {

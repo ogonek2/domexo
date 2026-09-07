@@ -206,7 +206,7 @@
                                         <i class="fas fa-phone mr-2"></i>
                                         +380 93 187 48 89
                                     </a>
-                                    <a href="mailto:zmartcomua@gmail.com" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl">
+                                    <a href="mailto:shershah169@gmail.com" class="bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-600 hover:to-cyan-600 text-white px-6 py-3 rounded-xl font-semibold transition-all duration-200 shadow-lg hover:shadow-xl">
                                         <i class="fas fa-envelope mr-2"></i>
                                         Написати нам
                                     </a>

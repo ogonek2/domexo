@@ -191,7 +191,7 @@
                        class="inline-flex items-center gap-2 bg-[#D4AF5A] px-6 py-3.5 font-heading font-semibold text-[#1E1E1E] transition-colors hover:bg-[#C5A059]">
                         <AppIcon name="phone" :size="18" /> Зателефонувати
                     </a>
-                    <a href="mailto:zmartcomua@gmail.com"
+                    <a href="mailto:shershah169@gmail.com"
                        class="inline-flex items-center gap-2 border-2 border-white/35 px-6 py-3.5 font-heading font-semibold text-white transition-colors hover:border-white hover:bg-white/10">
                         <AppIcon name="mail" :size="18" /> Написати нам
                     </a>
