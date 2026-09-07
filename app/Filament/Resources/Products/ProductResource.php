@@ -16,6 +16,7 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use UnitEnum;
 
@@ -69,6 +70,11 @@ class ProductResource extends Resource
         ];
     }
 
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->withCount(['categories', 'images']);
+    }
+
     /**
      * @return array<int, string>
      */
@@ -79,9 +85,14 @@ class ProductResource extends Resource
 
     public static function getGlobalSearchResultDetails(Model $record): array
     {
+        $price = $record->price;
+        $priceLabel = ($price === null || $price === '' || (float) $price <= 0)
+            ? 'Уточняется'
+            : $price.' ₴';
+
         return [
             'Артикул' => $record->articule ?: '—',
-            'Цена' => $record->price . ' ₴',
+            'Цена' => $priceLabel,
         ];
     }
 

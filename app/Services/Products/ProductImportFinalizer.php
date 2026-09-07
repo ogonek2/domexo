@@ -44,6 +44,7 @@ class ProductImportFinalizer
             : null;
 
         $import->finish($status, $error);
+        ProductDataQuality::forgetCache();
     }
 
     private static function findImport(Batch $batch): ?ProductImport

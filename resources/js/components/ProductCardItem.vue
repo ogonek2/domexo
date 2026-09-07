@@ -54,13 +54,17 @@
             </span>
 
             <div class="mt-0.5 flex flex-wrap items-baseline gap-1">
-                <span class="font-heading text-sm font-bold text-[#1E1E1E] sm:text-[1.0625rem]">
-                    {{ formatPrice(finalPrice(product)) }} грн
+                <span
+                    class="font-heading text-sm font-bold text-[#1E1E1E] sm:text-[1.0625rem]"
+                    :class="{ 'text-[0.8125rem] sm:text-sm font-semibold text-gray-600': !hasPrice }">
+                    {{ priceLabel }}
                 </span>
-                <span class="text-[0.6875rem] text-gray-600 sm:text-[0.8125rem]">/ {{ unitLabel }}</span>
+                <span
+                    v-if="hasPrice"
+                    class="text-[0.6875rem] text-gray-600 sm:text-[0.8125rem]">/ {{ unitLabel }}</span>
             </div>
 
-            <p v-if="product.discount > 0" class="text-[0.6875rem] text-gray-400 line-through sm:text-xs">
+            <p v-if="hasPrice && product.discount > 0" class="text-[0.6875rem] text-gray-400 line-through sm:text-xs">
                 {{ formatPrice(product.price) }} грн
             </p>
 
@@ -162,6 +166,8 @@ import {
     isProductInWishlist,
     finalPrice,
     formatPrice,
+    formatProductPrice,
+    hasSellablePrice,
     isInStock,
     hasWholesaleOffer,
     getCartQuantity,
@@ -207,6 +213,12 @@ export default {
         },
         hasWholesale() {
             return hasWholesaleOffer(this.product);
+        },
+        hasPrice() {
+            return hasSellablePrice(finalPrice(this.product));
+        },
+        priceLabel() {
+            return formatProductPrice(finalPrice(this.product), { currency: 'грн' });
         },
         wholesaleMinQty() {
             return parseQuantity(this.product.wholesale_min_quantity, 0);

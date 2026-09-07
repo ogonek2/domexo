@@ -20,7 +20,7 @@
                 </div>
                 <div class="product-details">
                     <h6 class="product-name">{{ product.name }}</h6>
-                    <p class="product-price">{{ formatPrice(product.price) }} ₴</p>
+                    <p class="product-price">{{ formatProductPrice(product.price) }}</p>
                 </div>
             </div>
         </div>
@@ -28,6 +28,8 @@
 </template>
 
 <script>
+import { formatProductPrice as displayProductPrice } from '../utils/cart.js';
+
 export default {
     name: "ToastNotification",
     data() {
@@ -94,12 +96,8 @@ export default {
             this.visible = false;
             this.product = null;
         },
-        formatPrice(price) {
-            if (typeof price === 'string') {
-                const cleanPrice = parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.'));
-                return cleanPrice.toFixed(2);
-            }
-            return price.toFixed(2);
+        formatProductPrice(price) {
+            return displayProductPrice(price, { currency: '₴' });
         }
     }
 };

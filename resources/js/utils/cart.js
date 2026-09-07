@@ -1,14 +1,48 @@
-export function formatPrice(price) {
+export const PRICE_ON_REQUEST_LABEL = 'Ціна уточнюється';
+
+export function parsePriceNumber(price) {
+    if (price === null || price === undefined || price === '') {
+        return null;
+    }
+
     const num = typeof price === 'string'
         ? parseFloat(price.replace(/[^\d.,]/g, '').replace(',', '.'))
-        : price;
+        : Number(price);
+
+    return Number.isFinite(num) ? num : null;
+}
+
+/** true, если цену можно показать числом (не 0 и не пустая). */
+export function hasSellablePrice(price) {
+    const num = parsePriceNumber(price);
+    return num !== null && num > 0;
+}
+
+export function formatPrice(price) {
+    const num = parsePriceNumber(price);
     return Math.round(num || 0).toLocaleString('uk-UA');
 }
 
+/**
+ * Цена товара для витрины: «123 ₴» или «Ціна уточнюється».
+ * @param {unknown} price
+ * @param {{ currency?: string }} [options]
+ */
+export function formatProductPrice(price, options = {}) {
+    if (!hasSellablePrice(price)) {
+        return PRICE_ON_REQUEST_LABEL;
+    }
+
+    const currency = options.currency;
+    const formatted = formatPrice(price);
+
+    return currency ? `${formatted} ${currency}` : formatted;
+}
+
 export function finalPrice(product) {
-    const price = parseFloat(product.price) || 0;
-    const discount = parseFloat(product.discount) || 0;
-    if (discount > 0) {
+    const price = parsePriceNumber(product?.price) ?? 0;
+    const discount = parseFloat(product?.discount) || 0;
+    if (discount > 0 && price > 0) {
         return price * (1 - discount / 100);
     }
     return price;

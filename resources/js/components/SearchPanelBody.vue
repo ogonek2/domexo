@@ -31,7 +31,7 @@
                         <span class="search-panel__body">
                             <span class="search-panel__name">{{ item.name }}</span>
                             <span class="search-panel__meta">
-                                <span class="search-panel__price">{{ formatPrice(item.price) }} ₴</span>
+                                <span class="search-panel__price">{{ formatProductPrice(item.price) }}</span>
                                 <span v-if="item.discount > 0" class="search-panel__discount">-{{ item.discount }}%</span>
                             </span>
                         </span>
@@ -51,6 +51,7 @@
 
 <script>
 import AppIcon from './AppIcon.vue';
+import { formatProductPrice as displayProductPrice } from '../utils/cart.js';
 
 export default {
     name: 'SearchPanelBody',
@@ -67,8 +68,8 @@ export default {
             const category = item.category_url || 'catalog';
             return `/catalog/categoriya/${encodeURIComponent(category)}/${encodeURIComponent(item.url)}`;
         },
-        formatPrice(price) {
-            return Math.round(Number(price) || 0).toLocaleString('uk-UA');
+        formatProductPrice(price) {
+            return displayProductPrice(price, { currency: '₴' });
         },
     },
 };

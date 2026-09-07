@@ -53,11 +53,14 @@
 
                         <div class="product-page__price-block">
                             <div class="product-page__price-row">
-                                <span class="product-page__price">{{ formatPrice(product.finalPrice) }}</span>
-                                <span class="product-page__currency">грн</span>
-                                <span class="product-page__unit">/ {{ product.unit_name }}</span>
+                                <template v-if="hasPrice">
+                                    <span class="product-page__price">{{ formatPrice(product.finalPrice) }}</span>
+                                    <span class="product-page__currency">грн</span>
+                                    <span class="product-page__unit">/ {{ product.unit_name }}</span>
+                                </template>
+                                <span v-else class="product-page__price product-page__price--on-request">{{ priceOnRequestLabel }}</span>
                             </div>
-                            <p v-if="product.discount > 0" class="product-page__old-price">{{ formatPrice(product.price) }} грн</p>
+                            <p v-if="hasPrice && product.discount > 0" class="product-page__old-price">{{ formatPrice(product.price) }} грн</p>
                             <p class="product-page__min-order">Замовлення від {{ minOrderQuantity }} {{ product.unit_name }}</p>
 
                             <button
@@ -160,6 +163,7 @@ import ProductGallery from '../components/ProductGallery.vue';
 import ProductBuyBox from '../components/ProductBuyBox.vue';
 import ProductList from '../components/ProductList.vue';
 import { getMinOrderTotal, getCurrencyLabel } from '../utils/shopSettings.js';
+import { hasSellablePrice, PRICE_ON_REQUEST_LABEL } from '../utils/cart.js';
 
 export default {
     name: 'ProductRoutePage',
@@ -181,6 +185,8 @@ export default {
         };
 
         const product = computed(() => data.value.product || null);
+
+        const hasPrice = computed(() => hasSellablePrice(product.value?.finalPrice ?? product.value?.price));
 
         const minOrderQuantity = computed(() => {
             const value = Number(product.value?.min_order_quantity);
@@ -210,6 +216,8 @@ export default {
         return {
             product,
             facts,
+            hasPrice,
+            priceOnRequestLabel: PRICE_ON_REQUEST_LABEL,
             minOrderQuantity,
             minOrderTotal: getMinOrderTotal(),
             currencyLabel: getCurrencyLabel(),

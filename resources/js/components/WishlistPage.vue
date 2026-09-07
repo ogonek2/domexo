@@ -11,7 +11,7 @@
                     <h3 class="wishlist-page__name">
                         <a :href="itemUrl(item)">{{ item.name }}</a>
                     </h3>
-                    <p class="wishlist-page__price">{{ formatPrice(item.price) }} ₴</p>
+                    <p class="wishlist-page__price">{{ formatProductPrice(item.price) }}</p>
 
                     <div class="wishlist-page__actions">
                         <a :href="itemUrl(item)" class="wishlist-page__view">
@@ -44,7 +44,7 @@
 
 <script>
 import AppIcon from './AppIcon.vue';
-import { addProductToCart } from '../utils/cart.js';
+import { addProductToCart, formatProductPrice as displayProductPrice } from '../utils/cart.js';
 
 export default {
     name: 'WishlistPage',
@@ -88,8 +88,8 @@ export default {
                 availability: 1,
             }, 1);
         },
-        formatPrice(price) {
-            return Math.round(parseFloat(price) || 0).toLocaleString('uk-UA');
+        formatProductPrice(price) {
+            return displayProductPrice(price, { currency: '₴' });
         },
         itemUrl(item) {
             const cat = item.category_url || 'catalog';
