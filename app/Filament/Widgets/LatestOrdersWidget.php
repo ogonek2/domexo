@@ -11,7 +11,7 @@ use Filament\Widgets\TableWidget;
 
 class LatestOrdersWidget extends TableWidget
 {
-    protected static ?int $sort = -15;
+    protected static ?int $sort = -13;
 
     protected int|string|array $columnSpan = 'full';
 

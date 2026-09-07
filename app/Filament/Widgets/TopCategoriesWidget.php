@@ -8,20 +8,26 @@ use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Support\Collection;
 
-class TopProductsWidget extends TableWidget
+class TopCategoriesWidget extends TableWidget
 {
-    protected static ?int $sort = -16;
+    protected static ?int $sort = -15;
 
-    protected int|string|array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 1;
 
     protected static bool $isLazy = true;
 
     public function table(Table $table): Table
     {
         return $table
-            ->heading('Популярные товары')
-            ->description('Топ по количеству проданных единиц в заказах')
-            ->records(fn (): Collection => ShopAnalytics::topProducts(12))
+            ->heading('Рейтинг категорий')
+            ->description('По количеству проданных единиц')
+            ->records(fn (): Collection => ShopAnalytics::topCategories(8)
+                ->values()
+                ->map(function (array $row, int $index): array {
+                    $row['id'] = $index + 1;
+
+                    return $row;
+                }))
             ->paginated(false)
             ->columns([
                 TextColumn::make('id')
@@ -30,27 +36,18 @@ class TopProductsWidget extends TableWidget
                     ->width('3rem'),
 
                 TextColumn::make('name')
-                    ->label('Товар')
-                    ->wrap()
-                    ->limit(80),
-
-                TextColumn::make('articule')
-                    ->label('Артикул')
-                    ->color('gray'),
+                    ->label('Категория')
+                    ->wrap(),
 
                 TextColumn::make('qty')
                     ->label('Продано')
                     ->alignCenter()
+                    ->suffix(' шт')
                     ->weight('bold'),
-
-                TextColumn::make('orders')
-                    ->label('В заказах')
-                    ->alignCenter(),
 
                 TextColumn::make('revenue')
                     ->label('Выручка')
                     ->alignEnd()
-                    ->weight('bold')
                     ->formatStateUsing(fn ($state): string => number_format((float) $state, 0, '.', ' ').' ₴'),
             ]);
     }
