@@ -65,7 +65,8 @@ class MegaMenuTest extends TestCase
         $this->get('/')
             ->assertOk()
             ->assertSee('Газовий балон Tourist 5л', false)
-            ->assertSee('mega-menu__products', false);
+            ->assertSee('mega-tile', false)
+            ->assertSee('890', false);
     }
 
     public function test_mega_menu_shows_products_in_subcategories(): void

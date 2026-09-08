@@ -39,26 +39,22 @@
                         </div>
 
                         @if ($item['products']->isNotEmpty())
-                            <ul class="mega-menu__products mega-menu__products--flat">
+                            <div class="mega-menu__product-grid">
                                 @foreach ($item['products'] as $product)
-                                    <li>
-                                        <a href="{{ route('catalog_product_page', ['category' => $product->category_url, 'product' => $product->url]) }}">
-                                            {{ $product->name }}
-                                        </a>
-                                    </li>
+                                    @include('includes.main.mega-menu-product', ['product' => $product, 'variant' => 'grid'])
                                 @endforeach
-                            </ul>
+                            </div>
                             @if ($item['count'] > $item['products']->count())
                                 <a href="{{ route('catalog_category_page', $item['category']->url) }}"
                                    class="mega-menu__more mega-menu__more--block">
-                                    Переглянути всі {{ $item['count'] }} товарів
+                                    Усі {{ $item['count'] }} товарів
                                     <x-lucide-icon name="arrow-right" width="14" />
                                 </a>
                             @endif
                         @endif
 
                         @if (!empty($item['children']))
-                            <div class="mega-menu__groups">
+                            <div class="mega-menu__groups {{ $item['products']->isNotEmpty() ? 'mega-menu__groups--after-products' : '' }}">
                                 @foreach ($item['children'] as $block)
                                     <div class="mega-menu__group">
                                         <a href="{{ route('catalog_category_page', $block['category']->url) }}"
@@ -77,15 +73,11 @@
                                                         {{ $sub['category']->name }}
                                                     </a>
                                                     @if ($sub['products']->isNotEmpty())
-                                                        <ul class="mega-menu__products">
-                                                            @foreach ($sub['products'] as $product)
-                                                                <li>
-                                                                    <a href="{{ route('catalog_product_page', ['category' => $product->category_url, 'product' => $product->url]) }}">
-                                                                        {{ $product->name }}
-                                                                    </a>
-                                                                </li>
+                                                        <div class="mega-menu__product-list">
+                                                            @foreach ($sub['products']->take(4) as $product)
+                                                                @include('includes.main.mega-menu-product', ['product' => $product, 'variant' => 'row'])
                                                             @endforeach
-                                                        </ul>
+                                                        </div>
                                                     @endif
                                                     <a href="{{ route('catalog_category_page', $sub['category']->url) }}"
                                                        class="mega-menu__more">
@@ -95,19 +87,15 @@
                                                 </div>
                                             @endforeach
                                         @elseif ($block['products']->isNotEmpty())
-                                            <ul class="mega-menu__products">
-                                                @foreach ($block['products'] as $product)
-                                                    <li>
-                                                        <a href="{{ route('catalog_product_page', ['category' => $product->category_url, 'product' => $product->url]) }}">
-                                                            {{ $product->name }}
-                                                        </a>
-                                                    </li>
+                                            <div class="mega-menu__product-list">
+                                                @foreach ($block['products']->take(5) as $product)
+                                                    @include('includes.main.mega-menu-product', ['product' => $product, 'variant' => 'row'])
                                                 @endforeach
-                                            </ul>
-                                            @if ($block['count'] > $block['products']->count())
+                                            </div>
+                                            @if ($block['count'] > min(5, $block['products']->count()))
                                                 <a href="{{ route('catalog_category_page', $block['category']->url) }}"
                                                    class="mega-menu__more">
-                                                    Всі {{ $block['count'] }} товарів
+                                                    Усі {{ $block['count'] }}
                                                     <x-lucide-icon name="arrow-right" width="12" />
                                                 </a>
                                             @endif

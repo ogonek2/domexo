@@ -16,11 +16,11 @@ use Illuminate\Support\Facades\DB;
  */
 class MegaMenuService
 {
-    public const CACHE_KEY = 'shop.mega_menu.v2';
+    public const CACHE_KEY = 'shop.mega_menu.v3';
 
     public const CACHE_TTL = 300;
 
-    public const PRODUCTS_PER_CATEGORY = 12;
+    public const PRODUCTS_PER_CATEGORY = 8;
 
     /**
      * @return array<int, array{
