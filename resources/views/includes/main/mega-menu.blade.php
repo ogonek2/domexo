@@ -38,84 +38,47 @@
                             @endif
                         </div>
 
-                        @if ($item['products']->isNotEmpty())
-                            <div class="mega-menu__product-grid">
-                                @foreach ($item['products'] as $product)
-                                    @include('includes.main.mega-menu-product', ['product' => $product, 'variant' => 'grid'])
-                                @endforeach
+                        @if (!empty($item['children']))
+                            <div class="mega-menu__section">
+                                <p class="mega-menu__section-label">Підкатегорії</p>
+                                <div class="mega-menu__tile-grid">
+                                    @foreach ($item['children'] as $block)
+                                        @include('includes.main.mega-menu-category', ['block' => $block])
+                                    @endforeach
+                                    @foreach ($item['children'] as $block)
+                                        @foreach ($block['children'] ?? [] as $sub)
+                                            @include('includes.main.mega-menu-category', ['block' => $sub])
+                                        @endforeach
+                                    @endforeach
+                                </div>
                             </div>
-                            @if ($item['count'] > $item['products']->count())
-                                <a href="{{ route('catalog_category_page', $item['category']->url) }}"
-                                   class="mega-menu__more mega-menu__more--block">
-                                    Усі {{ $item['count'] }} товарів
-                                    <x-lucide-icon name="arrow-right" width="14" />
-                                </a>
-                            @endif
                         @endif
 
-                        @if (!empty($item['children']))
-                            <div class="mega-menu__groups {{ $item['products']->isNotEmpty() ? 'mega-menu__groups--after-products' : '' }}">
-                                @foreach ($item['children'] as $block)
-                                    <div class="mega-menu__group">
-                                        <a href="{{ route('catalog_category_page', $block['category']->url) }}"
-                                           class="mega-menu__group-title">
-                                            {{ $block['category']->name }}
-                                            @if ($block['count'] > 0)
-                                                <span class="mega-menu__group-count">{{ $block['count'] }}</span>
-                                            @endif
-                                        </a>
-
-                                        @if (!empty($block['children']))
-                                            @foreach ($block['children'] as $sub)
-                                                <div class="mega-menu__subgroup">
-                                                    <a href="{{ route('catalog_category_page', $sub['category']->url) }}"
-                                                       class="mega-menu__subgroup-title">
-                                                        {{ $sub['category']->name }}
-                                                    </a>
-                                                    @if ($sub['products']->isNotEmpty())
-                                                        <div class="mega-menu__product-list">
-                                                            @foreach ($sub['products']->take(4) as $product)
-                                                                @include('includes.main.mega-menu-product', ['product' => $product, 'variant' => 'row'])
-                                                            @endforeach
-                                                        </div>
-                                                    @endif
-                                                    <a href="{{ route('catalog_category_page', $sub['category']->url) }}"
-                                                       class="mega-menu__more">
-                                                        Всі товари
-                                                        <x-lucide-icon name="arrow-right" width="12" />
-                                                    </a>
-                                                </div>
-                                            @endforeach
-                                        @elseif ($block['products']->isNotEmpty())
-                                            <div class="mega-menu__product-list">
-                                                @foreach ($block['products']->take(5) as $product)
-                                                    @include('includes.main.mega-menu-product', ['product' => $product, 'variant' => 'row'])
-                                                @endforeach
-                                            </div>
-                                            @if ($block['count'] > min(5, $block['products']->count()))
-                                                <a href="{{ route('catalog_category_page', $block['category']->url) }}"
-                                                   class="mega-menu__more">
-                                                    Усі {{ $block['count'] }}
-                                                    <x-lucide-icon name="arrow-right" width="12" />
-                                                </a>
-                                            @endif
-                                        @else
-                                            <a href="{{ route('catalog_category_page', $block['category']->url) }}"
-                                               class="mega-menu__more">
-                                                Перейти
-                                                <x-lucide-icon name="arrow-right" width="12" />
-                                            </a>
-                                        @endif
-                                    </div>
-                                @endforeach
+                        @if ($item['products']->isNotEmpty())
+                            <div class="mega-menu__section {{ !empty($item['children']) ? 'mega-menu__section--spaced' : '' }}">
+                                @if (!empty($item['children']))
+                                    <p class="mega-menu__section-label">Товари</p>
+                                @endif
+                                <div class="mega-menu__tile-grid">
+                                    @foreach ($item['products'] as $product)
+                                        @include('includes.main.mega-menu-product', ['product' => $product, 'variant' => 'grid'])
+                                    @endforeach
+                                </div>
+                                @if ($item['count'] > $item['products']->count())
+                                    <a href="{{ route('catalog_category_page', $item['category']->url) }}"
+                                       class="mega-menu__more mega-menu__more--block">
+                                        Усі {{ $item['count'] }} товарів
+                                        <x-lucide-icon name="arrow-right" width="14" />
+                                    </a>
+                                @endif
                             </div>
-                        @elseif ($item['products']->isEmpty() && $item['count'] > 0)
+                        @elseif (empty($item['children']) && $item['count'] > 0)
                             <a href="{{ route('catalog_category_page', $item['category']->url) }}"
                                class="mega-menu__more mega-menu__more--block">
                                 Переглянути всі {{ $item['count'] }} товарів
                                 <x-lucide-icon name="arrow-right" width="14" />
                             </a>
-                        @elseif ($item['products']->isEmpty())
+                        @elseif (empty($item['children']))
                             <p class="mega-menu__empty">Товари скоро з'являться</p>
                             <a href="{{ route('catalog_category_page', $item['category']->url) }}"
                                class="mega-menu__more mega-menu__more--block">

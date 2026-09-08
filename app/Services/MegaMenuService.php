@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\DB;
  */
 class MegaMenuService
 {
-    public const CACHE_KEY = 'shop.mega_menu.v3';
+    public const CACHE_KEY = 'shop.mega_menu.v4';
 
     public const CACHE_TTL = 300;
 
