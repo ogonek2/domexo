@@ -9,8 +9,9 @@ function isMobileMega() {
 function updateHeaderMetrics() {
     const header = document.getElementById('siteHeader');
     if (!header) return;
-    const bottom = header.getBoundingClientRect().bottom;
+    const bottom = Math.max(0, Math.round(header.getBoundingClientRect().bottom));
     document.documentElement.style.setProperty('--site-header-bottom', `${bottom}px`);
+    document.documentElement.style.setProperty('--header-height', `${bottom}px`);
 }
 
 function initHeaderSearch() {
