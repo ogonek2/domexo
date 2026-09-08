@@ -258,6 +258,9 @@ class Product extends Model
 
     protected static function booted()
     {
+        static::saved(fn () => forget_mega_menu_cache());
+        static::deleted(fn () => forget_mega_menu_cache());
+
         static::deleting(function ($product) {
             // Удаляем связи many-to-many
             $product->catalogs()->detach();

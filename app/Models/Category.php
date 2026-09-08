@@ -95,6 +95,9 @@ class Category extends Model
                 $category->url = self::generateHref($category->name);
             }
         });
+
+        static::saved(fn () => forget_mega_menu_cache());
+        static::deleted(fn () => forget_mega_menu_cache());
     }
 
     // Метод для генерации href

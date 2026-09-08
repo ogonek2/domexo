@@ -201,71 +201,19 @@ if (!function_exists('build_category_breadcrumbs')) {
 if (!function_exists('forget_mega_menu_cache')) {
     function forget_mega_menu_cache(): void
     {
-        // Мега-меню більше не кешується в БД — нічого скидати.
+        app(\App\Services\MegaMenuService::class)->forget();
     }
 }
 
 if (!function_exists('get_mega_menu_data')) {
     /**
-     * Просте дерево категорій для мега-меню.
-     * Без Cache у MySQL і без окремих запитів товарів на кожну категорію —
-     * на хостингу mysql.tools це ламає UPDATE sessions (HY000 2014).
+     * Дерево категорий и образцы товаров для мега-меню.
+     *
+     * @return array<int, array<string, mixed>>
      */
     function get_mega_menu_data(): array
     {
-        $roots = Category::query()
-            ->select(Category::LISTING_COLUMNS)
-            ->where('is_active', true)
-            ->whereNull('parent_id')
-            ->orderBy('name')
-            ->with(['childCategories' => function ($q) {
-                $q->select(Category::LISTING_COLUMNS)
-                    ->where('is_active', true)
-                    ->orderBy('name')
-                    ->withCount('products')
-                    ->with(['childCategories' => function ($q2) {
-                        $q2->select(Category::LISTING_COLUMNS)
-                            ->where('is_active', true)
-                            ->orderBy('name')
-                            ->withCount('products');
-                    }]);
-            }])
-            ->withCount('products')
-            ->get();
-
-        $items = [];
-
-        foreach ($roots as $root) {
-            $childBlocks = [];
-
-            foreach ($root->childCategories as $child) {
-                $subBlocks = [];
-
-                foreach ($child->childCategories as $grand) {
-                    $subBlocks[] = [
-                        'category' => $grand,
-                        'count' => (int) $grand->products_count,
-                        'products' => collect(),
-                    ];
-                }
-
-                $childBlocks[] = [
-                    'category' => $child,
-                    'count' => (int) $child->products_count,
-                    'products' => collect(),
-                    'children' => $subBlocks,
-                ];
-            }
-
-            $items[] = [
-                'category' => $root,
-                'count' => (int) $root->products_count,
-                'children' => $childBlocks,
-                'products' => collect(),
-            ];
-        }
-
-        return $items;
+        return app(\App\Services\MegaMenuService::class)->items();
     }
 }
 

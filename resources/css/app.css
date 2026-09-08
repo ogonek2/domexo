@@ -2663,7 +2663,9 @@ iconify-icon { display: inline-block; vertical-align: middle; color: currentColo
 }
 
 .mega-menu__group-title {
-    display: block;
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
     font-family: var(--font-heading);
     font-size: 0.8125rem;
     font-weight: 700;
@@ -2674,6 +2676,13 @@ iconify-icon { display: inline-block; vertical-align: middle; color: currentColo
 }
 
 .mega-menu__group-title:hover { color: var(--color-domiko-gold); }
+
+.mega-menu__group-count {
+    font-family: var(--font-body);
+    font-size: 0.6875rem;
+    font-weight: 600;
+    color: var(--color-domiko-muted);
+}
 
 .mega-menu__subgroup {
     margin-top: 0.625rem;
