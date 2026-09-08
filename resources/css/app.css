@@ -2279,6 +2279,7 @@ iconify-icon { display: inline-block; vertical-align: middle; color: currentColo
         padding: 0;
         justify-content: center;
         border-radius: 999px;
+        bottom: 5.25rem;
     }
 }
 
