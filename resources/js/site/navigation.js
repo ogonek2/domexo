@@ -138,6 +138,7 @@ function initMegaMenu() {
         catButtons.forEach((b) => {
             const active = b.dataset.megaPanel === panelId;
             b.classList.toggle('mega-menu__cat--active', active);
+            b.classList.toggle('mega-menu__chip--active', active);
             b.setAttribute('aria-selected', active ? 'true' : 'false');
         });
         panels.forEach((p) => {
@@ -155,8 +156,10 @@ function initMegaMenu() {
             activatePanel(button.dataset.megaPanel);
         });
         button.addEventListener('click', () => {
-            if (!isMobileMega()) return;
             activatePanel(button.dataset.megaPanel);
+            if (isMobileMega()) {
+                menu.querySelector('.mega-menu__panels')?.scrollTo({ top: 0 });
+            }
         });
     });
 

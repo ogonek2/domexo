@@ -65,7 +65,7 @@ class MegaMenuTest extends TestCase
         $this->get('/')
             ->assertOk()
             ->assertSee('Газовий балон Tourist 5л', false)
-            ->assertSee('mega-tile', false)
+            ->assertSee('mega-card', false)
             ->assertSee('890', false);
     }
 
