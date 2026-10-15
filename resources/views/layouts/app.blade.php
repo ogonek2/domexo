@@ -15,6 +15,7 @@
     <link rel="manifest" href="/build/manifest.webmanifest">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="it-rating" content="it-rat-a26f881eeb9eb5ae2398d5109156e741" />
 
 
 
@@ -37,6 +38,17 @@
     <script>
         window.__SHOP_SETTINGS__ = @json(shop_settings_public());
     </script>
+    
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-17008582925"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+    
+      gtag('config', 'AW-17008582925');
+    </script>
+    <meta name="google-site-verification" content="20qctDxJ7W14nU9x0ZFOec0IqfoIAJfiEeCjwwiFvUY" />
 
     @stack('styles')
 
