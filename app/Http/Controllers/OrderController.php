@@ -179,11 +179,17 @@ class OrderController extends Controller
                 ];
             }
 
+            $transactionId = (string) $order->id;
+
             session()->flash('purchase_js', [
                 'event' => 'purchase',
+                'transaction_id' => $transactionId,
+                'value' => $orderTotal,
+                'currency' => 'UAH',
                 'ecommerce' => [
-                    'transaction_id' => $order->id,
+                    'transaction_id' => $transactionId,
                     'value' => $orderTotal,
+                    'currency' => 'UAH',
                     'items' => $items,
                 ],
                 'items' => $simpleItems,

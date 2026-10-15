@@ -48,9 +48,25 @@
 
 @push('scripts')
     @if(session('purchase_js'))
+        @php
+            $purchase = session('purchase_js');
+            $transactionId = (string) ($purchase['transaction_id'] ?? data_get($purchase, 'ecommerce.transaction_id', ''));
+            $purchaseValue = (float) ($purchase['value'] ?? data_get($purchase, 'ecommerce.value', 0));
+            $purchaseCurrency = (string) ($purchase['currency'] ?? data_get($purchase, 'ecommerce.currency', 'UAH'));
+        @endphp
         <script>
             window.dataLayer = window.dataLayer || [];
-            window.dataLayer.push({!! json_encode(session('purchase_js'), JSON_UNESCAPED_UNICODE) !!});
+            window.dataLayer.push({!! json_encode($purchase, JSON_UNESCAPED_UNICODE) !!});
+
+            // Google Ads Conversion Tracking (Покупка) — gtag must send conversion, dataLayer alone is not enough
+            if (typeof gtag === 'function') {
+                gtag('event', 'conversion', {
+                    send_to: 'AW-17008582925/JMThCJzL47gaEI3Cqa4_',
+                    value: {!! json_encode($purchaseValue) !!},
+                    currency: {!! json_encode($purchaseCurrency) !!},
+                    transaction_id: {!! json_encode($transactionId) !!}
+                });
+            }
         </script>
     @endif
 @endpush
